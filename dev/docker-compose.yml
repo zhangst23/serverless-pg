@@ -1,0 +1,27 @@
+# CloudPG 本地对齐环境: 最小 PG + PgBouncer
+# 用于开发者本地对齐云端连接池行为，避免"本地能跑线上挂"。
+# 用法: docker compose -f dev/docker-compose.yml up -d
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: cloudpg
+      POSTGRES_PASSWORD: cloudpg
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    command: ["postgres", "-c", "listen_addresses=*"]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: cloudpg
+      DB_PASSWORD: cloudpg
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "100"
+    ports:
+      - "6432:6432"
+    depends_on:
+      - postgres
