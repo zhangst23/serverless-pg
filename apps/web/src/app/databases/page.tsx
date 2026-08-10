@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import AppShell from "@/components/AppShell";
 import { Card, Button, Badge, Spinner, ErrorBox, Empty, ConfirmDeleteModal } from "@/components/ui";
-import { roles, parseApiKey, getApiKey } from "@/lib/api";
+import { projects, parseApiKey, getApiKey } from "@/lib/api";
 import { databases } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 
@@ -89,7 +89,7 @@ function DatabasesInner() {
   async function downloadEnv(db: any) {
     try {
       const pid = parseApiKey(getApiKey())?.projectId || "";
-      const cs = await roles.connectionString(pid);
+      const cs = await projects.connectionString(pid);
       const uri: string = cs?.connection_string || "";
       // 将连接串中的库名替换为当前数据库名
       const env = [

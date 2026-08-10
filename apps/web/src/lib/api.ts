@@ -2,7 +2,7 @@
 // 所有请求都带上 X-API-Key，访问后端的 /api/v1。
 
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_BASE || "";
 
 export const API_KEY_STORAGE = "cloudpg_api_key";
 
@@ -51,11 +51,24 @@ async function request<T>(
   const key = getApiKey();
   if (key) headers["X-API-Key"] = key;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers,
-    cache: "no-store",
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    clearTimeout(timeout);
+    if (e?.name === "AbortError") {
+      throw new ApiError("请求超时，无法连接后端 (检查 NEXT_PUBLIC_API_BASE 与后端是否运行)", 0);
+    }
+    throw new ApiError(e?.message || "网络错误，无法连接后端", 0);
+  }
+  clearTimeout(timeout);
 
   if (!res.ok) {
     let detail = res.statusText;
