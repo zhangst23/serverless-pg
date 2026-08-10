@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Env / secrets
+.env
+*.local
+secrets/
+
+# Data dirs (runtime PG instances)
+data/
+pgdata/
+/var/lib/cloudpg/
+
+# Node
+node_modules/
+
+# Editors
+.idea/
+.vscode/

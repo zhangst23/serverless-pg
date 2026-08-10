@@ -1,0 +1,20 @@
+# CloudPG PostgreSQL 实例 systemd 模板
+# 用法: systemctl enable --now cloudpg-instance@<instance_id>.service
+# 由 Compute Manager 在创建实例时渲染数据目录路径。
+[Unit]
+Description=CloudPG PostgreSQL instance %i
+After=network.target
+
+[Service]
+Type=forking
+User=postgres
+Group=postgres
+Environment=PGDATA=/var/lib/cloudpg/instances/%i/data
+ExecStart=/usr/pgsql/bin/pg_ctl -D ${PGDATA} -l ${PGDATA}/logfile -w start
+ExecStop=/usr/pgsql/bin/pg_ctl -D ${PGDATA} -m fast -w stop
+ExecReload=/usr/pgsql/bin/pg_ctl -D ${PGDATA} -w restart
+TimeoutSec=60
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
