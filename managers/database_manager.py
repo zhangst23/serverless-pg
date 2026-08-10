@@ -61,7 +61,15 @@ def list_tables(instance_id: str, database: str) -> list[str]:
         "ORDER BY table_schema, table_name;"
     )
     out = _psql(instance_id, database, sql)
-    return [t for t in out.splitlines() if t] if out else []
+    if not out:
+        return []
+    tables = []
+    for line in out.splitlines():
+        line = line.strip()
+        if not line or "Time:" in line or line.startswith("(") or "rows" in line:
+            continue
+        tables.append(line)
+    return tables
 
 
 def read_logfile(instance_id: str, tail: int = 200) -> str:
