@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import AppShell from "@/components/AppShell";
-import { Card, Button, Badge, Spinner, ErrorBox, Empty } from "@/components/ui";
+import { Card, Button, Badge, Spinner, ErrorBox, Empty, ConfirmDeleteModal } from "@/components/ui";
 import { databases } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 
@@ -26,6 +26,9 @@ function DatabasesInner() {
 
   const [selected, setSelected] = useState<string | null>(null);
   const params = useSearchParams();
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -64,15 +67,20 @@ function DatabasesInner() {
     }
   }
 
-  async function remove(id: string) {
-    if (!confirm("确认删除该数据库？此操作不可恢复。")) return;
+  async function confirmRemove() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleting(true);
     setError(null);
     try {
       await databases.remove(id);
+      setDeleteTarget(null);
       if (selected === id) setSelected(null);
       await load();
     } catch (e: any) {
       setError(e?.message || "删除失败");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -141,7 +149,7 @@ function DatabasesInner() {
                 </Button>
                 <Button
                   variant="danger"
-                  onClick={() => remove(db.id)}
+                  onClick={() => setDeleteTarget({ id: db.id, name: db.name })}
                   className="px-2 py-1 text-xs"
                 >
                   删除
@@ -157,6 +165,15 @@ function DatabasesInner() {
       </div>
 
       {selected && <SqlConsole databaseId={selected} reload={load} />}
+
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          resourceName={deleteTarget.name}
+          busy={deleting}
+          onCancel={() => !deleting && setDeleteTarget(null)}
+          onConfirm={confirmRemove}
+        />
+      )}
     </AppShell>
   );
 }

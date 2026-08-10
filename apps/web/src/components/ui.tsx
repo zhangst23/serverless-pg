@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
 export function Card({
   children,
@@ -123,5 +123,71 @@ export function Empty({ children }: { children: ReactNode }) {
     <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--muted)]">
       {children}
     </div>
+  );
+}
+
+export function Modal({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="mb-4 text-sm font-semibold text-[var(--foreground)]">
+          {title}
+        </h3>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function ConfirmDeleteModal({
+  resourceName,
+  onCancel,
+  onConfirm,
+  busy,
+}: {
+  resourceName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  busy?: boolean;
+}) {
+  const [text, setText] = useState("");
+  const matched = text.trim() === "删除";
+  return (
+    <Modal title="删除确认" onClose={onCancel}>
+      <p className="text-sm text-[var(--muted)]">
+        此操作不可恢复。请输入{" "}
+        <span className="font-mono font-semibold text-rose-300">删除</span>{" "}
+        以确认删除 <span className="font-mono text-[var(--foreground)]">{resourceName}</span>。
+      </p>
+      <input
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="删除"
+        className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm outline-none focus:border-rose-500/50"
+      />
+      <div className="mt-4 flex justify-end gap-3">
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
+          取消
+        </Button>
+        <Button variant="danger" onClick={onConfirm} disabled={!matched || busy}>
+          {busy ? "删除中…" : "确认删除"}
+        </Button>
+      </div>
+    </Modal>
   );
 }
