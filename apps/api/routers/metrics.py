@@ -17,5 +17,6 @@ async def metrics(database_id: str, auth: AuthContext = Depends(require_auth), d
     d = await db_svc.get(db, database_id)
     if not d or not d.compute_id:
         raise HTTPException(status_code=404, detail="not found")
-    data = await metrics_svc.collect(d.compute_id, d.name)
+    storage_limit = getattr(d, "storage_gb", None) or 10.0
+    data = await metrics_svc.collect(d.compute_id, d.name, storage_limit_gb=float(storage_limit))
     return {"database_id": database_id, **data}

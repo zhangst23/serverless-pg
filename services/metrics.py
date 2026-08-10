@@ -10,26 +10,33 @@ from managers.compute_manager import _port_for, _run
 from managers.storage_manager import usage
 
 
-async def collect(compute_id: str, database_name: str) -> dict:
+async def collect(compute_id: str, database_name: str, storage_limit_gb: float = 10.0) -> dict:
     pg_bin = "/usr/pgsql/bin"
     port = _port_for(compute_id)
+    connections = 0
+    tps = qps = 0
+    iops_read = iops_write = 0
+    cache_hit_ratio = 0.0
     try:
         out = _run("postgres", [
             f"{pg_bin}/psql", "-h", "localhost", "-p", str(port), "-U", "cloudpg", "-d", "postgres",
             "-t", "-A", "-F", ",", "-c",
             "SELECT numbackends, xact_commit + xact_rollback, xact_commit, xact_rollback, "
-            "blks_read, blk_read_time + blk_write_time "
+            "blks_read, blks_hit "
             "FROM pg_stat_database WHERE datname='postgres';",
         ]).stdout.strip()
         parts = out.split(",") if out else []
         connections = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else 0
         tps = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
         qps = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-        iops = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 0
-        latency = float(parts[5]) if len(parts) > 5 and parts[5] else 0.0
+        blks_read = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 0
+        blks_hit = int(parts[5]) if len(parts) > 5 and parts[5].isdigit() else 0
+        iops_read = blks_read
+        iops_write = max(tps - blks_read, 0)
+        total_blocks = blks_read + blks_hit
+        cache_hit_ratio = round(blks_hit / total_blocks * 100, 1) if total_blocks else 0.0
     except Exception:  # noqa: BLE001
-        connections = tps = qps = iops = 0
-        latency = 0.0
+        pass
 
     # CPU / RAM (本机概览, 真实环境应取 cgroup)
     cpu = float(os.getloadavg()[0])
@@ -41,12 +48,15 @@ async def collect(compute_id: str, database_name: str) -> dict:
     return {
         "cpu": cpu,
         "ram_gb": mem,
-        "storage_gb": storage_gb,
+        "storage_used_gb": storage_gb,
+        "storage_limit_gb": storage_limit_gb,
         "connections": connections,
-        "qps": qps,
+        "queries_per_sec": qps,
         "tps": tps,
-        "iops": iops,
-        "latency_ms": round(latency, 2),
+        "iops_read": iops_read,
+        "iops_write": iops_write,
+        "cache_hit_ratio": cache_hit_ratio,
+        "latency_ms": 0.0,
     }
 
 

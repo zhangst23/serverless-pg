@@ -37,6 +37,17 @@ def _snippets(database_name: str, user: str, password: str) -> dict:
     }
 
 
+@router.get("/projects/{project_id}/roles", response_model=list[dict])
+async def list_roles(project_id: str, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import select
+    res = await db.execute(select(Role).where(Role.project_id == project_id))
+    roles = res.scalars().all()
+    return [
+        {"id": r.id, "name": r.name, "privilege": r.privilege}
+        for r in roles
+    ]
+
+
 @router.post("/projects/{project_id}/roles", response_model=dict)
 async def create_role_endpoint(
     project_id: str, body: RoleCreate, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)
