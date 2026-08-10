@@ -39,7 +39,10 @@ async def create_database(
 @router.get("", response_model=list[dict])
 async def list_databases(auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
     items = await db_svc.list_by_project(db, auth.project_id)
-    return [{"id": d.id, "name": d.name, "status": d.status} for d in items]
+    return [
+        {"id": d.id, "name": d.name, "status": d.status, "compute_id": d.compute_id}
+        for d in items
+    ]
 
 
 @router.get("/{database_id}", response_model=dict)
@@ -47,7 +50,7 @@ async def get_database(database_id: str, auth: AuthContext = Depends(require_aut
     d = await db_svc.get(db, database_id)
     if not d:
         raise HTTPException(status_code=404, detail="not found")
-    return {"id": d.id, "name": d.name, "status": d.status}
+    return {"id": d.id, "name": d.name, "status": d.status, "compute_id": d.compute_id}
 
 
 @router.delete("/{database_id}", response_model=dict)
