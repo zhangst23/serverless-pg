@@ -52,10 +52,13 @@ async def require_auth(
     """
     if not api_key:
         raise HTTPException(status_code=401, detail="missing API key")
+    # 约定格式: org_<org>__proj_<proj>__<random>  (3 段)
     try:
-        _, org, _p, proj, _rand = api_key.split("__")
-        organization_id = org.replace("org_", "")
-        project_id = proj.replace("proj_", "")
+        org_part, proj_part, _rand = api_key.split("__")
+        organization_id = org_part.replace("org_", "")
+        project_id = proj_part.replace("proj_", "")
+        if not organization_id or not project_id:
+            raise ValueError("empty org/project")
     except ValueError as exc:
         raise HTTPException(status_code=401, detail="malformed API key") from exc
     return AuthContext(organization_id=organization_id, project_id=project_id)

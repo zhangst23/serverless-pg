@@ -32,10 +32,14 @@ def provision(instance_id: str, cpu: float, memory_gb: float) -> dict:
     pg_bin = settings.pg_bin
     data_dir = _data_dir(instance_id)
     port = _port_for(instance_id)
-    os.makedirs(os.path.dirname(data_dir), exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+    # 确保 postgres 用户对数据目录有写权限 (initdb 必须以 postgres 运行)
+    _run("root", ["chown", "-R", "postgres:postgres", os.path.dirname(data_dir)])
 
     if not os.path.exists(os.path.join(data_dir, "PG_VERSION")):
-        _run("postgres", [f"{pg_bin}/initdb", "-D", data_dir, "-U", "cloudpg", "--auth=trust"])
+        r = _run("postgres", [f"{pg_bin}/initdb", "-D", data_dir, "-U", "cloudpg", "--auth=trust"])
+        if r.returncode != 0:
+            raise RuntimeError(f"initdb 失败: {r.stderr}")
 
     # 写入端口与监听
     with open(os.path.join(data_dir, "postgresql.conf"), "a") as f:
@@ -95,20 +99,28 @@ def _pg_ctl(instance_id: str, action: str, *extra: str) -> None:
 
 
 def _apply_resource_limits(instance_id: str, cpu: float, memory_gb: float) -> None:
-    """尽力而为地应用 CPU / 内存限制 (cgroup v2)。失败仅记录，不阻断。"""
-    # 仅在支持 cgroup v2 时尝试；生产建议配合 systemd 资源指令。
+    """尽力而为地应用 CPU / 内存限制 (cgroup v2)。失败仅记录，不阻断。
+
+    注意: 直接 open().write() 在部分 cgroup 实现下可能阻塞，因此用带
+    timeout 的 subprocess 写入, 且整体包裹超时保护, 绝不阻断主流程。
+    """
+    import subprocess
+
+    cg = f"/sys/fs/cgroup/cloudpg_{instance_id}"
     try:
-        cg = f"/sys/fs/cgroup/cloudpg_{instance_id}"
-        if os.path.isdir("/sys/fs/cgroup"):
-            os.makedirs(cg, exist_ok=True)
-            with open(os.path.join(cg, "cpu.max"), "w") as f:
-                # cpu.max 形如 "quota period"; 以 100000 为周期
-                quota = int(cpu * 100000)
-                f.write(f"{quota} 100000\n")
-            with open(os.path.join(cg, "memory.max"), "w") as f:
-                f.write(f"{int(memory_gb * 1024 * 1024 * 1024)}\n")
+        if not os.path.isdir("/sys/fs/cgroup"):
+            return
+        os.makedirs(cg, exist_ok=True)
+        quota = int(cpu * 100000)
+        mem = int(memory_gb * 1024 * 1024 * 1024)
+        # 用 shell 重定向 + timeout 防阻塞
+        for fname, content in (("cpu.max", f"{quota} 100000"), ("memory.max", str(mem))):
+            subprocess.run(
+                f"echo '{content}' > '{os.path.join(cg, fname)}'",
+                shell=True, capture_output=True, timeout=2,
+            )
     except Exception:  # noqa: BLE001
-        pass  # 非致命，记录日志即可
+        pass  # 非致命, cgroup 限制失败不影响 PG 实例运行
 
 
 def now() -> datetime:

@@ -15,6 +15,8 @@ pip install -r requirements.txt httpx pytest
 
 ```bash
 bash deploy/scripts/setup_base.sh        # initdb + 启动 control-plane PG(5433)
+# setup_base.sh 仅初始化数据目录并启动实例, 还需手动创建 cloudpg_cp 库
+psql "postgresql://cloudpg@localhost:5433/postgres" -c "CREATE DATABASE cloudpg_cp OWNER cloudpg;"
 python -m db.init_db                       # 建 Control Plane 表
 ```
 

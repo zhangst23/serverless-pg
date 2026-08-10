@@ -16,6 +16,7 @@ async def create_backup(
 ) -> Backup:
     archive_dir = os.path.join(settings.data_root, compute_id, "backups")
     os.makedirs(archive_dir, exist_ok=True)
+    _run("root", ["chown", "-R", "postgres:postgres", archive_dir])
     location = os.path.join(archive_dir, f"{database_name}_{kind}.dump")
 
     pg_bin = settings.pg_bin
