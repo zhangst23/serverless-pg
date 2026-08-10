@@ -40,13 +40,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
-app.include_router(databases.router, prefix="/api/v1", tags=["databases"])
-app.include_router(computes.router, prefix="/api/v1", tags=["computes"])
-app.include_router(endpoints.router, prefix="/api/v1", tags=["endpoints"])
-app.include_router(backups.router, prefix="/api/v1", tags=["backups"])
-app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
-app.include_router(roles.router, prefix="/api/v1", tags=["roles"])
+app.include_router(projects.router, prefix="/api/v1")
+app.include_router(databases.router, prefix="/api/v1")
+app.include_router(computes.router, prefix="/api/v1")
+app.include_router(endpoints.router, prefix="/api/v1")
+app.include_router(backups.router, prefix="/api/v1")
+app.include_router(metrics.router, prefix="/api/v1")
+app.include_router(roles.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["meta"])

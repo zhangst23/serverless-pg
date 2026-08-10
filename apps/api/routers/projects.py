@@ -9,7 +9,7 @@ from apps.api.security import AuthContext, require_auth
 from db.session import AsyncSession
 from services import project as project_svc
 
-router = APIRouter()
+router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 class ProjectCreate(BaseModel):

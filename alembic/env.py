@@ -14,7 +14,8 @@ from db.base import Base
 import db.models  # noqa: F401 确保模型注册
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.control_plane_dsn)
+_async_dsn = settings.control_plane_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+config.set_main_option("sqlalchemy.url", _async_dsn)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

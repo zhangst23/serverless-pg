@@ -10,7 +10,7 @@ from db.session import AsyncSession
 from services import backup as backup_svc
 from services import database as db_svc
 
-router = APIRouter()
+router = APIRouter(prefix="/backups", tags=["backups"])
 
 
 class BackupRequest(BaseModel):

@@ -9,7 +9,7 @@ from apps.api.security import AuthContext, require_auth
 from db.session import AsyncSession
 from services import compute as compute_svc
 
-router = APIRouter()
+router = APIRouter(prefix="/computes", tags=["computes"])
 
 
 class ComputeCreate(BaseModel):

@@ -8,7 +8,7 @@ from apps.api.security import AuthContext, require_auth
 from db.session import AsyncSession
 from services import endpoint as endpoint_svc
 
-router = APIRouter()
+router = APIRouter(prefix="/endpoints", tags=["endpoints"])
 
 
 @router.get("/{endpoint_id}", response_model=dict)

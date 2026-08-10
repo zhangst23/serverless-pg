@@ -9,7 +9,7 @@ set -euo pipefail
 
 PG_BIN="/usr/pgsql/bin"
 PG_VERSION="18"
-CP_DATA_DIR="/var/lib/cloudpg/control-plane"
+CP_DATA_DIR="${CLOUDPG_CP_DATA_DIR:-/tmp/cloudpg/control-plane}"
 CP_PORT="${CLOUDPG_CP_PORT:-5433}"
 CP_USER="${CLOUDPG_CP_USER:-cloudpg}"
 CP_PASSWORD="${CLOUDPG_CP_PASSWORD:-cloudpg_secret}"

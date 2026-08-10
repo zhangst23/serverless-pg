@@ -5,7 +5,9 @@ computes / endpoints / backups / volumes / api_keys / usage / roles
 """
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TenantMixin, TimestampMixin, gen_id

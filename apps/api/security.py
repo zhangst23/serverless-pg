@@ -5,7 +5,7 @@ import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
 
-import jwt
+from jose import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel

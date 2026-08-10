@@ -9,7 +9,7 @@ from db.session import AsyncSession
 from services import database as db_svc
 from services import metrics as metrics_svc
 
-router = APIRouter()
+router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
 @router.get("/databases/{database_id}", response_model=dict)

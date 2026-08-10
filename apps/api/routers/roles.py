@@ -13,7 +13,7 @@ from managers.compute_manager import gen_password
 from managers.database_manager import create_role
 from services import database as db_svc
 
-router = APIRouter()
+router = APIRouter(tags=["roles"])
 
 
 class RoleCreate(BaseModel):

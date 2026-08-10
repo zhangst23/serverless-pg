@@ -10,12 +10,14 @@ class Settings(BaseSettings):
     )
 
     # Control Plane 数据库 (与用户 PG 完全分离)
-    control_plane_dsn: str = "postgresql://cloudpg:cloudpg_secret@localhost:5433/cloudpg_cp"
+    # 默认使用 /tmp/cloudpg (postgres 用户可写，无需系统权限)；
+    # 生产可经 .env 覆盖为 /var/lib/cloudpg/...
+    control_plane_dsn: str = "postgresql://cloudpg@localhost:5433/cloudpg_cp"
 
-    # 运行 PG 二进制与数据根
+    # 运行 PG 二进制与数据根 (postgres 用户可写路径)
     pg_bin: str = "/usr/pgsql/bin"
     pg_version: str = "18"
-    data_root: str = "/var/lib/cloudpg/instances"
+    data_root: str = "/tmp/cloudpg/instances"
     base_port: int = 5432
 
     # 连接入口 (PgBouncer / Envoy)

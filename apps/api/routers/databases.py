@@ -11,7 +11,7 @@ from services import database as db_svc
 from services import compute as compute_svc
 from managers.database_manager import run_query
 
-router = APIRouter()
+router = APIRouter(prefix="/databases", tags=["databases"])
 
 
 class DatabaseCreate(BaseModel):

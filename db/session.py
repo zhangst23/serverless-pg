@@ -11,8 +11,11 @@ from sqlalchemy.ext.asyncio import (
 
 from apps.api.config import settings
 
+# 强制 asyncpg 异步驱动
+_async_dsn = settings.control_plane_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 engine = create_async_engine(
-    settings.control_plane_dsn,
+    _async_dsn,
     echo=False,
     pool_pre_ping=True,
     future=True,
