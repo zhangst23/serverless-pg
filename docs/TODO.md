@@ -102,7 +102,7 @@
 - [✅] 生成标准连接串 `postgres://user:pass@host:5432/db`
 - [✅] **DX**：连接页标注"暂停态首连延迟"，给出应用层重试 + 连接池预热最佳实践
 - [✅] **DX**：文档明确 PgBouncer transaction 模式限制
-- [🟡] **DX**：按 project 支持"永不自动暂停"白名单（排除暂停）— 数据模型未含该字段
+- [✅] **DX**：按 project 支持"永不自动暂停"白名单（排除暂停）— Settings 页开关已接 `never_suspend`
 
 ### 1.10 ⑤ Backup
 - [🟡] pgBackRest 对接（WAL Archive → S3 / MinIO）— 当前用 pg_dump 本地归档
@@ -121,7 +121,7 @@
 
 ### 1.11.1 角色与凭证（DX）
 - [✅] 创建多个 DB 角色（读写 / 只读），独立密码（`routers/roles.py`）
-- [🟡] 控制台生成 / 重置密码，一键下载 `.env` — 角色创建已实现，下载 `.env` 未做
+- [✅] 控制台生成 / 重置密码，一键下载 `.env` — 数据库页 `.env` 导出按钮（含 DATABASE_URL）
 - [✅] 连接页按语言（Node / Python / Go / Rust）给出可复制连接代码
 - [✅] 客户端兼容清单（psql / psycopg / node-pg / Prisma / Drizzle / SQLAlchemy）
 
@@ -133,15 +133,15 @@
 - [✅] Dashboard / Projects 概览统计（`dashboard`）
 - [✅] Project Detail → Overview
 - [🟡] SQL Editor — 基础查询控制台已实现（`databases` 页内嵌），非 Monaco 独立编辑器
-- [⬜] Tables 浏览
-- [✅] Compute 管理（规格、启停、Suspend/Resume、调规格）— 暂停白名单开关未做
-- [⬜] Storage 管理（容量档位）— 创建时选 CPU，存储档位未做 UI
+- [✅] Tables 浏览（`/tables` 页，选库列出用户表）
+- [✅] Compute 管理（规格、启停、Suspend/Resume、调规格）— 自动暂停开关已接 `auto_suspend`
+- [✅] Storage 管理（容量档位）— 创建数据库时可选 10GB–1TB 档位
 - [✅] Backups 列表与恢复（手动备份 / 恢复）
 - [✅] Metrics 面板（8 项指标）
 - [✅] Connection 信息展示（多语言代码 + 连接串）
 - [✅] Roles 管理（角色/密码/只读）
-- [⬜] Logs 查看（PG 日志流式）— CLI `logs` 已支持
-- [⬜] Settings
+- [✅] Logs 查看（PG 日志流式）— 控制台 Logs 页 + CLI `logs`
+- [✅] Settings（项目级「永不自动暂停」开关）
 
 ### 1.13 CLI（apps/cli，开发者友好）
 - [✅] `cloudpg login / projects / databases / computes / sql` 基础命令

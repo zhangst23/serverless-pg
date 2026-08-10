@@ -21,6 +21,10 @@ class ResizeRequest(BaseModel):
     cpu: float
 
 
+class AutoSuspendRequest(BaseModel):
+    auto_suspend: bool
+
+
 @router.post("", response_model=dict)
 async def create_compute(
     body: ComputeCreate, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)
@@ -69,3 +73,9 @@ async def resize(compute_id: str, body: ResizeRequest, auth: AuthContext = Depen
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"id": comp.id, "cpu": comp.cpu, "memory_gb": comp.memory_gb, "status": comp.status}
+
+
+@router.patch("/{compute_id}/auto-suspend", response_model=dict)
+async def set_auto_suspend(compute_id: str, body: AutoSuspendRequest, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    comp = await compute_svc.set_auto_suspend(db, compute_id=compute_id, organization_id=auth.organization_id, project_id=auth.project_id, auto_suspend=body.auto_suspend)
+    return {"id": comp.id, "auto_suspend": comp.auto_suspend}

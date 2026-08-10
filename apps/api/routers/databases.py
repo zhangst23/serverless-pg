@@ -9,7 +9,7 @@ from apps.api.security import AuthContext, require_auth
 from db.session import AsyncSession
 from services import database as db_svc
 from services import compute as compute_svc
-from managers.database_manager import run_query
+from managers.database_manager import list_tables, read_logfile, run_query
 
 router = APIRouter(prefix="/databases", tags=["databases"])
 
@@ -17,6 +17,7 @@ router = APIRouter(prefix="/databases", tags=["databases"])
 class DatabaseCreate(BaseModel):
     name: str
     cpu: float = 1.0
+    storage_gb: int = 10
 
 
 class QueryRequest(BaseModel):
@@ -29,7 +30,7 @@ async def create_database(
 ):
     try:
         database = await db_svc.create(
-            db, organization_id=auth.organization_id, project_id=auth.project_id, name=body.name, cpu=body.cpu
+            db, organization_id=auth.organization_id, project_id=auth.project_id, name=body.name, cpu=body.cpu, storage_gb=body.storage_gb
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -50,7 +51,27 @@ async def get_database(database_id: str, auth: AuthContext = Depends(require_aut
     d = await db_svc.get(db, database_id)
     if not d:
         raise HTTPException(status_code=404, detail="not found")
-    return {"id": d.id, "name": d.name, "status": d.status, "compute_id": d.compute_id}
+    return {"id": d.id, "name": d.name, "status": d.status, "compute_id": d.compute_id, "storage_gb": d.storage_gb}
+
+
+@router.get("/{database_id}/tables", response_model=list[dict])
+async def table_list(database_id: str, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    d = await db_svc.get(db, database_id)
+    if not d or not d.compute_id:
+        raise HTTPException(status_code=404, detail="not found")
+    if d.status == "suspended" and d.compute_id:
+        await compute_svc.resume_compute(db, compute_id=d.compute_id, organization_id=auth.organization_id, project_id=auth.project_id)
+    tables = list_tables(d.compute_id, d.name)
+    return [{"name": t} for t in tables]
+
+
+@router.get("/{database_id}/logs", response_model=dict)
+async def logs(database_id: str, tail: int = 200, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    d = await db_svc.get(db, database_id)
+    if not d or not d.compute_id:
+        raise HTTPException(status_code=404, detail="not found")
+    content = read_logfile(d.compute_id, tail=tail)
+    return {"database_id": database_id, "log": content}
 
 
 @router.delete("/{database_id}", response_model=dict)

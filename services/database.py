@@ -16,6 +16,7 @@ async def create(
     project_id: str,
     name: str,
     cpu: float = 1.0,
+    storage_gb: int = 10,
 ) -> Database:
     # 1) 分配 Compute
     comp = await compute_svc.create(
@@ -33,6 +34,7 @@ async def create(
         status="creating",
         compute_id=comp.id,
         endpoint_id=ep.id,
+        storage_gb=storage_gb,
     )
     db.add(database)
     await db.flush()

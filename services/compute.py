@@ -115,3 +115,11 @@ async def resize_compute(db: AsyncSession, *, compute_id: str, organization_id: 
     await db.commit()
     await db.refresh(comp)
     return comp
+
+
+async def set_auto_suspend(db: AsyncSession, *, compute_id: str, organization_id: str, project_id: str, auto_suspend: bool) -> Compute:
+    comp = await _get_checked(db, compute_id, organization_id, project_id)
+    comp.auto_suspend = auto_suspend
+    await db.commit()
+    await db.refresh(comp)
+    return comp

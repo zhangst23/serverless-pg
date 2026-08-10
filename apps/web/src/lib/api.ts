@@ -21,6 +21,17 @@ export function clearApiKey() {
   window.localStorage.removeItem(API_KEY_STORAGE);
 }
 
+/** 从 API Key 解析 org / project（格式 org_<org>__proj_<proj>__<rand>）。 */
+export function parseApiKey(key: string): { organizationId: string; projectId: string } | null {
+  if (!key) return null;
+  const parts = key.split("__");
+  if (parts.length !== 3) return null;
+  return {
+    organizationId: parts[0].replace("org_", ""),
+    projectId: parts[1].replace("proj_", ""),
+  };
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -65,6 +76,8 @@ async function request<T>(
 /* ---------------- Projects ---------------- */
 export const projects = {
   list: () => request<any[]>("/api/v1/projects", { method: "GET" }),
+  get: (id: string) =>
+    request<any>(`/api/v1/projects/${id}`, { method: "GET" }),
   create: (name: string, region = "local") =>
     request<any>("/api/v1/projects", {
       method: "POST",
@@ -73,6 +86,10 @@ export const projects = {
   connectionString: (projectId: string) =>
     request<any>(`/api/v1/projects/${projectId}/connection-string`, {
       method: "GET",
+    }),
+  neverSuspend: (projectId: string, value: boolean) =>
+    request<any>(`/api/v1/projects/${projectId}/never-suspend?value=${value}`, {
+      method: "PATCH",
     }),
   roles: (projectId: string) =>
     request<any>(`/api/v1/projects/${projectId}/roles`, { method: "GET" }),
@@ -95,10 +112,10 @@ export const projects = {
 /* ---------------- Databases ---------------- */
 export const databases = {
   list: () => request<any[]>("/api/v1/databases", { method: "GET" }),
-  create: (name: string, cpu = 1) =>
+  create: (name: string, cpu = 1, storageGb = 10) =>
     request<any>("/api/v1/databases", {
       method: "POST",
-      body: JSON.stringify({ name, cpu }),
+      body: JSON.stringify({ name, cpu, storage_gb: storageGb }),
     }),
   get: (id: string) =>
     request<any>(`/api/v1/databases/${id}`, { method: "GET" }),
@@ -108,6 +125,12 @@ export const databases = {
     request<{ rows: any[] }>(`/api/v1/databases/${id}/query`, {
       method: "POST",
       body: JSON.stringify({ sql }),
+    }),
+  tables: (id: string) =>
+    request<any[]>(`/api/v1/databases/${id}/tables`, { method: "GET" }),
+  logs: (id: string, tail = 200) =>
+    request<{ log: string }>(`/api/v1/databases/${id}/logs?tail=${tail}`, {
+      method: "GET",
     }),
 };
 
@@ -132,6 +155,11 @@ export const computes = {
     request<any>(`/api/v1/computes/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ cpu }),
+    }),
+  autoSuspend: (id: string, autoSuspend: boolean) =>
+    request<any>(`/api/v1/computes/${id}/auto-suspend`, {
+      method: "PATCH",
+      body: JSON.stringify({ auto_suspend: autoSuspend }),
     }),
 };
 

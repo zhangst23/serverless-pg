@@ -4,10 +4,11 @@
 """
 from __future__ import annotations
 
+import os
 import subprocess
 
 from apps.api.config import settings
-from managers.compute_manager import _port_for, _run
+from managers.compute_manager import _data_dir, _port_for, _run
 
 
 def _psql(instance_id: str, db: str, sql: str) -> str:
@@ -50,3 +51,30 @@ def run_query(instance_id: str, database: str, sql: str) -> list[dict]:
         raise RuntimeError(r.stderr.strip())
     lines = [l for l in r.stdout.splitlines() if l]
     return [{"row": l} for l in lines]
+
+
+def list_tables(instance_id: str, database: str) -> list[str]:
+    """列出数据库中的用户表 (schema.table)。"""
+    sql = (
+        "SELECT format('%s.%s', table_schema, table_name) FROM information_schema.tables "
+        "WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_type='BASE TABLE' "
+        "ORDER BY table_schema, table_name;"
+    )
+    out = _psql(instance_id, database, sql)
+    return [t for t in out.splitlines() if t] if out else []
+
+
+def read_logfile(instance_id: str, tail: int = 200) -> str:
+    """读取 PG 实例日志 (data_dir/logfile)。"""
+    log_path = os.path.join(_data_dir(instance_id), "logfile")
+    if not os.path.exists(log_path):
+        return ""
+    try:
+        r = subprocess.run(
+            ["sudo", "-u", "postgres", "tail", "-n", str(tail), log_path],
+            capture_output=True, text=True, check=False, timeout=5,
+        )
+        return r.stdout
+    except Exception:  # noqa: BLE001
+        return ""
+
