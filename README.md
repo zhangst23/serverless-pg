@@ -100,6 +100,15 @@ NEXT_PUBLIC_API_BASE=http://your-host:8000 npm run dev
 | 备份 | 手动备份 / 恢复 |
 | 监控 | 8 项核心指标 + 自动刷新 |
 
+
+### 管理后台访问
+
+http://<你的VPS公网IP>:3002/login
+
+登录用的还是 API Key：org_acme__proj_demo__rand123
+
+
+
 ### 3. CLI
 
 ```bash
