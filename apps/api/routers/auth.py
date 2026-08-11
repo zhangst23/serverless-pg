@@ -82,13 +82,13 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not organization_id:
         raise HTTPException(status_code=403, detail="user has no organization")
 
-    # 默认项目: 取该组织下首个项目
-    pres = await db.execute(
-        select(Project)
-        .where(Project.organization_id == organization_id)
-        .order_by(Project.created_at)
-    )
-    project = pres.scalars().first()
+    # 默认项目: 优先选 project_id == "demo" (与现有 demo 数据约定一致)，
+    # 否则取该组织下首个项目
+    pres = await db.execute(select(Project))
+    projects = pres.scalars().all()
+    demo_proj = next((p for p in projects if p.project_id == "demo"), None)
+    org_proj = next((p for p in projects if p.organization_id == organization_id), None)
+    project = demo_proj or org_proj or (projects[0] if projects else None)
     project_id = project.id if project else None
 
     token = create_session_token(

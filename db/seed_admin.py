@@ -35,7 +35,13 @@ def make_api_key(org: str, proj: str) -> str:
     return f"org_{org}__proj_{proj}__{secrets.token_hex(6)}"
 
 
-async def seed(email: str, password: str, org_slug: str, org_name: str) -> None:
+async def seed(
+    email: str,
+    password: str,
+    org_slug: str,
+    org_name: str,
+    project_name: str = "demo",
+) -> None:
     email = email.strip().lower()
     async with AsyncSessionLocal() as db:
         existing = await db.execute(select(User).where(User.email == email))
@@ -43,18 +49,38 @@ async def seed(email: str, password: str, org_slug: str, org_name: str) -> None:
             print(f"[skip] user {email} already exists")
             return
 
-        org = Organization(id=gen_id("org"), name=org_name, slug=org_slug)
-        db.add(org)
-        await db.flush()
-
-        # 默认项目 (agent 通道需要 project)
         from db.models import Project
 
-        project = Project(id=gen_id("proj"), name="default", region="local")
-        project.organization_id = org.id
-        project.project_id = project.id  # 自引用租户隔离
-        db.add(project)
-        await db.flush()
+        # 复用已有组织 (按 slug)，不存在才新建
+        org_row = (
+            await db.execute(select(Organization).where(Organization.slug == org_slug))
+        ).scalar_one_or_none()
+        if org_row:
+            org = org_row
+            print(f"[reuse] org {org.id} (slug={org_slug})")
+        else:
+            org = Organization(id=gen_id("org"), name=org_name, slug=org_slug)
+            db.add(org)
+            await db.flush()
+
+        # 复用已有项目: 优先按 project_id 字段 (demo 数据用字面量 "demo")，
+        # 其次按 name，都不存在才新建；该项目作为登录默认 project。
+        proj_row = (
+            await db.execute(select(Project).where(Project.project_id == project_name))
+        ).scalar_one_or_none()
+        if not proj_row:
+            proj_row = (
+                await db.execute(select(Project).where(Project.name == project_name))
+            ).scalar_one_or_none()
+        if proj_row:
+            project = proj_row
+            print(f"[reuse] project {project.id} (name={project_name})")
+        else:
+            project = Project(id=gen_id("proj"), name=project_name, region="local")
+            project.organization_id = org.id
+            project.project_id = project.id  # 自引用租户隔离
+            db.add(project)
+            await db.flush()
 
         if not _HAS_BCRYPT:
             raise RuntimeError("bcrypt unavailable")
@@ -66,7 +92,7 @@ async def seed(email: str, password: str, org_slug: str, org_name: str) -> None:
         db.add(Member(organization_id=org.id, user_id=user.id, role="owner"))
         await db.flush()
 
-        # Agent API Key
+        # Agent API Key (使用 project.id 作为 proj 段，与 demo 数据对齐)
         raw = make_api_key(org_slug, project.id)
         api_key = ApiKey(name="default-agent", key_hash=hash_api_key(raw))
         api_key.organization_id = org.id
@@ -77,6 +103,7 @@ async def seed(email: str, password: str, org_slug: str, org_name: str) -> None:
         print("[ok] created:")
         print(f"  user : {email}")
         print(f"  org  : {org.id} (slug={org_slug})")
+        print(f"  project (default): {project.id} (name={project_name})")
         print(f"  X-API-Key (agent): {raw}")
 
 
@@ -86,8 +113,9 @@ def main() -> None:
     ap.add_argument("--password", default=os.getenv("SEED_ADMIN_PASSWORD", "admin123456"))
     ap.add_argument("--org", default=os.getenv("SEED_ORG", "acme"))
     ap.add_argument("--org-name", default=os.getenv("SEED_ORG_NAME", "Acme Inc"))
+    ap.add_argument("--project", default=os.getenv("SEED_PROJECT", "demo"))
     args = ap.parse_args()
-    asyncio.run(seed(args.email, args.password, args.org, args.org_name))
+    asyncio.run(seed(args.email, args.password, args.org, args.org_name, args.project))
 
 
 if __name__ == "__main__":
