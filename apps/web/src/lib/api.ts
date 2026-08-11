@@ -1,35 +1,48 @@
 // CloudPG 前端 API 客户端
-// 所有请求都带上 X-API-Key，访问后端的 /api/v1。
+// 两类凭证:
+//  - User 通道 (Web 控制台): 账密登录后拿 Session JWT，存 localStorage，
+//    每次请求带 Authorization: Bearer <jwt>
+//  - Agent 通道 (CLI/SDK 不在此前端): X-API-Key
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || "";
 
-export const API_KEY_STORAGE = "cloudpg_api_key";
+export const TOKEN_STORAGE = "cloudpg_token";
 
-export function getApiKey(): string {
+export function getToken(): string {
   if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(API_KEY_STORAGE) || "";
+  return window.localStorage.getItem(TOKEN_STORAGE) || "";
 }
 
-export function setApiKey(key: string) {
+export function setToken(token: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(API_KEY_STORAGE, key);
+  window.localStorage.setItem(TOKEN_STORAGE, token);
 }
 
-export function clearApiKey() {
+export function clearToken() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(API_KEY_STORAGE);
+  window.localStorage.removeItem(TOKEN_STORAGE);
 }
 
-/** 从 API Key 解析 org / project（格式 org_<org>__proj_<proj>__<rand>）。 */
-export function parseApiKey(key: string): { organizationId: string; projectId: string } | null {
-  if (!key) return null;
-  const parts = key.split("__");
-  if (parts.length !== 3) return null;
-  return {
-    organizationId: parts[0].replace("org_", ""),
-    projectId: parts[1].replace("proj_", ""),
-  };
+/** 解析 Session JWT payload (仅读 claims，信任来自登录时后端签发)。 */
+export function parseToken(token: string): {
+  organizationId: string;
+  projectId: string | null;
+  userId: string;
+} | null {
+  if (!token) return null;
+  try {
+    const part = token.split(".")[1];
+    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+    const claims = JSON.parse(json);
+    return {
+      organizationId: claims.organization_id || "",
+      projectId: claims.project_id || null,
+      userId: claims.sub || "",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export class ApiError extends Error {
@@ -48,8 +61,8 @@ async function request<T>(
     "Content-Type": "application/json",
     ...(opts.headers as Record<string, string>),
   };
-  const key = getApiKey();
-  if (key) headers["X-API-Key"] = key;
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);

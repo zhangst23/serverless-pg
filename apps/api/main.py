@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import settings
 from apps.api.routers import (
+    auth,
     backups,
     computes,
     databases,
@@ -40,6 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(databases.router, prefix="/api/v1")
 app.include_router(computes.router, prefix="/api/v1")

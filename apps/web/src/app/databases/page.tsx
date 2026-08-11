@@ -88,7 +88,7 @@ function DatabasesInner() {
 
   async function downloadEnv(db: any) {
     try {
-      const pid = parseApiKey(getApiKey())?.projectId || "";
+      const pid = parseToken(getToken())?.projectId || "";
       const cs = await projects.connectionString(pid);
       const uri: string = cs?.connection_string || "";
       // 将连接串中的库名替换为当前数据库名

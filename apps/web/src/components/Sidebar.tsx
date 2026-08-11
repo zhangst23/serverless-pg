@@ -21,7 +21,7 @@ export default function Sidebar() {
   const router = useRouter();
 
   const logout = () => {
-    clearApiKey();
+    clearToken();
     router.push("/login");
   };
 

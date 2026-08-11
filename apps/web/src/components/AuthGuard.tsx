@@ -10,7 +10,7 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!getApiKey()) {
+    if (!getToken()) {
       router.replace("/login");
       return;
     }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Card, Button, Badge, Spinner, ErrorBox, Empty } from "@/components/ui";
-import { projects, databases, parseApiKey, getApiKey } from "@/lib/api";
+import { projects, databases, parseToken, getToken } from "@/lib/api";
 
 const SNIPPET_LABELS: Record<string, string> = {
   connection_string: "连接串",
@@ -32,7 +32,7 @@ export default function ConnectionsPage() {
 
   // 角色接口按项目隔离；项目标识从 API Key 的 proj_<name> 段解析
   const projectId = (() => {
-    const parsed = parseApiKey(getApiKey());
+    const parsed = parseToken(getToken());
     return parsed ? parsed.projectId : "";
   })();
 

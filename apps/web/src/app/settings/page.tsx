@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
-  const parsed = parseApiKey(getApiKey());
+  const parsed = parseToken(getToken());
   const projectId = parsed?.projectId || "";
 
   async function load() {

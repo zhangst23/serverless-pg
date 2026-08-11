@@ -43,7 +43,7 @@ docs/       PRD.md / TODO.md / VERIFY.md
 | 数据库管理 | PostgreSQL 18 (`pg_ctl` / `initdb` / `pg_dump`) |
 | Web 管理后台 | Next.js 16 + TypeScript + Tailwind CSS v4 |
 | CLI / SDK | Python (`cloudpg` CLI, `cloudpg` Python SDK) |
-| 鉴权 | API Key (`org_<org>__proj_<proj>__<rand>`) |
+| 鉴权 | 双通道：User（账密登录 → Session JWT，直连 FastAPI）/ Agent（X-API-Key，CLI/SDK） |
 
 ## 快速开始
 
@@ -61,11 +61,28 @@ psql "postgresql://cloudpg@localhost:5433/postgres" -c "CREATE DATABASE cloudpg_
 # 初始化 Control Plane 表
 python -m db.init_db
 
+# 创建初始管理员用户 + 组织 + 生成 Agent API Key
+python -m db.seed_admin --email admin@example.com --password 'StrongPass123' --org acme --org-name 'Acme Inc'
+
 # 启动 API (默认 :8000)
 uvicorn apps.api.main:app --port 8000
 ```
 
-API Key 约定格式：`org_<org>__proj_<proj>__<random>`，通过 `X-API-Key` 头传递。
+### 鉴权：两种通道
+
+| 通道 | 身份 | 凭证 | 用途 |
+| --- | --- | --- | --- |
+| **User** | 人（Web 控制台） | 账密登录 → `Authorization: Bearer <Session JWT>` | 浏览器直连 FastAPI |
+| **Agent** | 机器（CLI / SDK） | `X-API-Key` | 程序调用，格式 `org_<org>__proj_<proj>__<rand>` |
+
+信任边界：
+- 账密只在 FastAPI 校验（bcrypt），登录成功后由 FastAPI 用共享 `JWT_SECRET` 签发 Session JWT（HMAC-SHA256，1 天过期）。
+- 浏览器直连 FastAPI（跨域），Session JWT 存前端 `localStorage`，每次请求带 `Authorization: Bearer`。
+- Agent 通道（`X-API-Key`）完全独立保留，CLI/SDK 不变。
+- 两种凭证都在 `require_auth` 验签/解析；FastAPI 不信任前端声称的 org/project，只认签名里的声明。
+
+配置（`.env`，Next.js 与 FastAPI 均需）：`JWT_SECRET`、`JWT_ALGORITHM`（默认 HS256）、`API_KEY_SECRET`。
+
 OpenAPI 文档：`http://localhost:8000/docs`
 
 ### 2. Web 管理后台（Next.js）
@@ -92,7 +109,7 @@ NEXT_PUBLIC_API_BASE=http://your-host:8000 npm run dev
 
 | 页面 | 能力 |
 | --- | --- |
-| 登录 | API Key 鉴权 |
+| 登录 | 账密登录（User 通道，签发 Session JWT） |
 | 概览 | 项目 / 数据库 / 备份统计 |
 | 数据库 | 创建 / 删除 / SQL 控制台（自动 resume） |
 | 计算实例 | 启停 / 挂起 / 恢复 / 调规格 (0.5~4 CPU) |
@@ -105,7 +122,7 @@ NEXT_PUBLIC_API_BASE=http://your-host:8000 npm run dev
 
 http://<你的VPS公网IP>:3002/login
 
-登录用的还是 API Key：org_acme__proj_demo__rand123
+Web 控制台使用 **账密登录**（User 通道）。CLI / SDK 仍使用 **X-API-Key**（Agent 通道）。
 
 
 
