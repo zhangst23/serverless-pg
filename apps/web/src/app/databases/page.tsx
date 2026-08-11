@@ -209,7 +209,13 @@ function DatabasesInner() {
         ))}
       </div>
 
-      {selected && <SqlConsole databaseId={selected} reload={load} />}
+      {selected && (
+        <SqlConsole
+          databaseId={selected}
+          databaseName={list.find((d) => d.id === selected)?.name || selected}
+          reload={load}
+        />
+      )}
 
       {deleteTarget && (
         <ConfirmDeleteModal
@@ -225,15 +231,28 @@ function DatabasesInner() {
 
 function SqlConsole({
   databaseId,
+  databaseName,
   reload,
 }: {
   databaseId: string;
+  databaseName: string;
   reload: () => void;
 }) {
   const [sql, setSql] = useState("SELECT 1;");
   const [rows, setRows] = useState<any[] | null>(null);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const suggestedSql: { label: string; sql: string }[] = [
+    { label: "查看所有表", sql: "SELECT schemaname, tablename\nFROM pg_tables\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nORDER BY schemaname, tablename;" },
+    { label: "查看表结构", sql: "SELECT column_name, data_type, is_nullable, column_default\nFROM information_schema.columns\nWHERE table_name = '<表名>'\nORDER BY ordinal_position;" },
+    { label: "查看索引", sql: "SELECT indexname, indexdef\nFROM pg_indexes\nWHERE tablename = '<表名>';" },
+    { label: "查看数据库大小", sql: "SELECT pg_size_pretty(pg_database_size(current_database())) AS db_size;" },
+    { label: "查看活跃连接", sql: "SELECT pid, usename, application_name, state, query\nFROM pg_stat_activity\nWHERE pid <> pg_backend_pid()\nORDER BY pid;" },
+    { label: "查看表行数估计", sql: "SELECT relname AS table_name, n_live_tup AS estimated_rows\nFROM pg_stat_user_tables\nORDER BY n_live_tup DESC;" },
+    { label: "创建表", sql: "CREATE TABLE <表名> (\n  id BIGSERIAL PRIMARY KEY,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);" },
+    { label: "查看版本", sql: "SELECT version();" },
+  ];
 
   async function run() {
     setRunning(true);
@@ -251,7 +270,20 @@ function SqlConsole({
   }
 
   return (
-    <Card className="mt-6" title="SQL 控制台" subtitle={`数据库 ${databaseId}`}>
+    <Card className="mt-6" title="SQL 控制台" subtitle={`数据库 ${databaseName}`}>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <span className="text-xs text-[var(--muted)]">常用 SQL：</span>
+        {suggestedSql.map((s) => (
+          <Button
+            key={s.label}
+            variant="ghost"
+            className="px-2 py-1 text-xs"
+            onClick={() => setSql(s.sql)}
+          >
+            {s.label}
+          </Button>
+        ))}
+      </div>
       <textarea
         value={sql}
         onChange={(e) => setSql(e.target.value)}

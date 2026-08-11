@@ -70,7 +70,12 @@ def provision(instance_id: str, cpu: float, memory_gb: float) -> dict:
 def start(instance_id: str) -> None:
     data_dir = _data_dir(instance_id)
     pg_bin = settings.pg_bin
-    _run("postgres", [f"{pg_bin}/pg_ctl", "-D", data_dir, "-l", os.path.join(data_dir, "logfile"), "-w", "start"])
+    # 带超时启动, 避免单 worker 后端被 pg_ctl 永久阻塞
+    subprocess.run(
+        ["sudo", "-u", "postgres", f"{pg_bin}/pg_ctl", "-D", data_dir,
+         "-l", os.path.join(data_dir, "logfile"), "-w", "-t", "30", "start"],
+        capture_output=True, text=True, timeout=40,
+    )
 
 
 def stop(instance_id: str) -> None:
@@ -78,7 +83,8 @@ def stop(instance_id: str) -> None:
 
 
 def restart(instance_id: str) -> None:
-    _pg_ctl(instance_id, "restart", "-w")
+    # 不等待(-W): 让 PG 后台重启, 后端快速返回, 避免阻塞单 worker
+    _pg_ctl(instance_id, "restart", "-W")
 
 
 def suspend(instance_id: str) -> None:
@@ -112,7 +118,11 @@ def connection_uri(instance_id: str, database: str, user: str = "cloudpg", passw
 def _pg_ctl(instance_id: str, action: str, *extra: str) -> None:
     data_dir = _data_dir(instance_id)
     pg_bin = settings.pg_bin
-    _run("postgres", [f"{pg_bin}/pg_ctl", "-D", data_dir, action, *extra])
+    # 带超时, 防止单 worker 后端被 pg_ctl 阻塞
+    subprocess.run(
+        ["sudo", "-u", "postgres", f"{pg_bin}/pg_ctl", "-D", data_dir, action, *extra],
+        capture_output=True, text=True, timeout=45,
+    )
 
 
 def _apply_resource_limits(instance_id: str, cpu: float, memory_gb: float) -> None:

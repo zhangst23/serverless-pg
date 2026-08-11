@@ -44,10 +44,14 @@ export default function ComputesPage() {
   }, []);
 
   async function act(computeId: string, fn: () => Promise<any>, label: string) {
-    setBusy(computeId + label);
+    setBusy(computeId);
     setError(null);
     try {
       await fn();
+      // resize/restart 会触发 PG 后台重启, 稍等再刷新, 避免 metrics 立即连不上
+      if (label.startsWith("resize")) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
       await load();
     } catch (e: any) {
       setError(e?.message || "操作失败");
@@ -87,7 +91,7 @@ export default function ComputesPage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="soft"
-                disabled={busy !== null}
+                disabled={busy === it.compute_id}
                 onClick={() =>
                   act(it.compute_id, () => computes.resume(it.compute_id), "resume")
                 }
@@ -96,7 +100,7 @@ export default function ComputesPage() {
               </Button>
               <Button
                 variant="soft"
-                disabled={busy !== null}
+                disabled={busy === it.compute_id}
                 onClick={() =>
                   act(it.compute_id, () => computes.suspend(it.compute_id), "suspend")
                 }
@@ -105,7 +109,7 @@ export default function ComputesPage() {
               </Button>
               <Button
                 variant="soft"
-                disabled={busy !== null}
+                disabled={busy === it.compute_id}
                 onClick={() =>
                   act(it.compute_id, () => computes.restart(it.compute_id), "restart")
                 }
@@ -122,7 +126,7 @@ export default function ComputesPage() {
                     key={c}
                     variant="ghost"
                     className="px-3 py-1 text-xs"
-                    disabled={busy !== null}
+                    disabled={busy === it.compute_id}
                     onClick={() =>
                       act(
                         it.compute_id,
@@ -136,8 +140,8 @@ export default function ComputesPage() {
                 ))}
               </div>
             </div>
-            {busy === it.compute_id + "resize" + 4 && (
-              <p className="mt-2 text-xs text-amber-300">调规格会重启实例…</p>
+            {busy === it.compute_id && (
+              <p className="mt-2 text-xs text-amber-300">操作中，请稍候…</p>
             )}
           </Card>
         ))}
