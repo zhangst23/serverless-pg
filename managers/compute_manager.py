@@ -36,18 +36,35 @@ def provision(instance_id: str, cpu: float, memory_gb: float) -> dict:
     # 确保 postgres 用户对数据目录有写权限 (initdb 必须以 postgres 运行)
     _run("root", ["chown", "-R", "postgres:postgres", os.path.dirname(data_dir)])
 
+    password = gen_password()
     if not os.path.exists(os.path.join(data_dir, "PG_VERSION")):
         r = _run("postgres", [f"{pg_bin}/initdb", "-D", data_dir, "-U", "cloudpg", "--auth=trust"])
         if r.returncode != 0:
             raise RuntimeError(f"initdb 失败: {r.stderr}")
 
-    # 写入端口与监听
+    # 写入端口与监听 (监听所有接口, 允许公网连接)
     with open(os.path.join(data_dir, "postgresql.conf"), "a") as f:
-        f.write(f"\nport = {port}\nlisten_addresses = 'localhost'\n")
+        f.write(f"\nport = {port}\nlisten_addresses = '*'\npassword_encryption = 'scram-sha-256'\n")
+
+    # 写入 pg_hba: 本地 trust (运维), 公网 scram 认证
+    pg_hba = os.path.join(data_dir, "pg_hba.conf")
+    hba_lines = [
+        "local   all   all                 trust",
+        "host    all   all   127.0.0.1/32  trust",
+        "host    all   all   ::1/128       trust",
+        f"host    all   all   0.0.0.0/0     scram-sha-256",
+        f"host    all   all   ::/0          scram-sha-256",
+    ]
+    with open(pg_hba, "a") as f:
+        f.write("\n# CloudPG external access (scram-sha-256)\n")
+        f.write("\n".join(hba_lines) + "\n")
 
     start(instance_id)
+    # 为实例 superuser(cloudpg) 设置密码 (公网连接使用)
+    _run("postgres", [f"{pg_bin}/psql", "-h", "localhost", "-p", str(port), "-U", "cloudpg",
+                      "-d", "postgres", "-c", f"ALTER USER cloudpg WITH PASSWORD '{password}';"])
     _apply_resource_limits(instance_id, cpu, memory_gb)
-    return {"data_dir": data_dir, "port": port, "status": "running"}
+    return {"data_dir": data_dir, "port": port, "password": password, "status": "running"}
 
 
 def start(instance_id: str) -> None:

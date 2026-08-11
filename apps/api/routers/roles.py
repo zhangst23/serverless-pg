@@ -115,5 +115,6 @@ async def connection_string(
         raise HTTPException(status_code=404, detail="no database")
     d = dbs[0]
     port = d.compute.port if d.compute else None
-    cs = _conn_string(d.name, "cloudpg", "", host, port)
-    return {"connection_string": cs, "snippets": _snippets(d.name, "cloudpg", "", host, port)}
+    pw = d.compute.password if d.compute else None
+    cs = _conn_string(d.name, "cloudpg", pw or "", host, port)
+    return {"connection_string": cs, "snippets": _snippets(d.name, "cloudpg", pw or "", host, port)}

@@ -82,6 +82,8 @@ class Compute(Base, TenantMixin, TimestampMixin):
     # 实际 PG 实例信息
     port: Mapped[int | None] = mapped_column(Integer, nullable=True)
     data_dir: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # 实例超级用户(cloudpg)密码 (scram-sha-256); 用于公网连接串
+    password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     auto_suspend: Mapped[bool] = mapped_column(Boolean, default=True)
 

@@ -38,6 +38,7 @@ async def create(db: AsyncSession, *, organization_id: str, project_id: str, nam
     info = provision(comp.id, cpu, memory_gb)
     comp.port = info["port"]
     comp.data_dir = info["data_dir"]
+    comp.password = info.get("password")
     comp.status = "running" if is_running(comp.id) else "error"
     await db.commit()
     await db.refresh(comp)
