@@ -4,7 +4,7 @@ AI-Native Serverless PostgreSQL 云数据库平台（第一版 / MVP）。
 
 - **部署方式**：本地裸 VPS（不使用 Kubernetes），用 systemd / 进程管理拉起 PostgreSQL 实例。
 - **Control Plane**：FastAPI + SQLAlchemy(async) + asyncpg，与用户 PostgreSQL 完全分离。
-- **核心能力（Phase 1）**：Database Lifecycle / Serverless Compute / Storage / Connection / Backup / Monitoring。
+- **核心能力（Phase 1）**：Database Lifecycle / Serverless Compute / Storage / Connection / Backup / Monitoring / **PG Performance（扩展与参数调优）**。
 - **管理面**：提供 Web 管理后台（Next.js）、CLI、Python SDK 三种入口。
 
 ## 架构
@@ -107,7 +107,7 @@ npm run dev              # http://localhost:3000
 
 # 生产模式 (构建后用 Nginx 反代到 :3002)
 npm run build
-npm run start -- -p 3002
+npx next start -p 3002
 ```
 
 前端通过 `NEXT_PUBLIC_API_BASE` 决定后端地址：
@@ -125,17 +125,21 @@ npm run start -- -p 3002
 | 登录 | 账密登录（User 通道，签发 Session JWT） |
 | 概览 | 项目 / 数据库 / 备份统计 |
 | 数据库 | 创建 / 删除 / SQL 控制台（自动 resume） |
+| 数据表 | 浏览数据表 / 查看表内容 |
+| **PG性能** | 管理提升性能的扩展(插件)（列表/安装/卸载）+ 调整运行参数（数据库级 / 实例级） |
 | 计算实例 | 启停 / 挂起 / 恢复 / 调规格 (0.5~4 CPU) |
 | 连接 & 角色 | 连接串 / 多语言片段 / 角色管理 |
 | 备份 | 手动备份 / 恢复 |
 | 监控 | 8 项核心指标 + 自动刷新 |
+| 日志 | 数据库 / 计算实例运行日志 |
+| 设置 | 项目与平台设置 |
 
 
 ### 管理后台访问（当前 VPS 实际部署）
 
 - 控制台地址：http://217.69.2.217:3002/login
 - 反向代理（Nginx `/etc/nginx/conf.d/cloudpg.conf`）：`/` → `127.0.0.1:3002`（前端），`/api/` → `127.0.0.1:8000`（后端）。
-- 后端进程绑 `127.0.0.1:8000`，前端 `npm run start -- -p 3002`。
+- 后端进程绑 `127.0.0.1:8000`，前端 `npx next start -p 3002`。
 
 **Web 控制台登录凭据（User 通道，账密）**：
 
@@ -193,5 +197,6 @@ Session JWT payload 字段：`sub`(user_id)、`organization_id`、`project_id`�
 | 角色 | `GET/POST /api/v1/projects/{id}/roles`、`POST /api/v1/projects/{id}/roles/{rid}/reset-password`、`DELETE ...` |
 | 备份 | `GET/POST /api/v1/backups`、`POST /api/v1/backups/{id}/restore` |
 | 监控 | `GET /api/v1/metrics/databases/{id}` |
+| PG性能 | `GET /api/v1/performance/extensions`、`POST /api/v1/performance/extensions`、`DELETE /api/v1/performance/extensions/{name}`、`GET/POST /api/v1/performance/settings` |
 
 详见 `docs/PRD.md`、`docs/TODO.md` 与 `docs/VERIFY.md`（真实端到端验证手册）。
