@@ -7,11 +7,12 @@ from db.models import Project
 
 
 async def create(db: AsyncSession, *, organization_id: str, name: str, region: str = "local") -> Project:
-    proj = Project(organization_id=organization_id, project_id="", name=name, region=region)
-    # project_id 与自身 id 一致，方便隔离查询
+    # 项目对外标识即 name (slug): 资源 project_id 与 API Key 的 proj_<name> 段均以此为隔离键
+    slug = name.strip()
+    if not slug:
+        raise ValueError("name 不能为空")
+    proj = Project(id=slug, organization_id=organization_id, project_id=slug, name=name, region=region)
     db.add(proj)
-    await db.flush()
-    proj.project_id = proj.id
     await db.commit()
     await db.refresh(proj)
     return proj
