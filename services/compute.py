@@ -19,7 +19,7 @@ from managers.compute_manager import (
 CPU_MEM = {0.25: 0.5, 0.5: 1.0, 1.0: 2.0, 2.0: 4.0, 4.0: 8.0}
 
 
-async def create(db: AsyncSession, *, organization_id: str, project_id: str, name: str, cpu: float) -> Compute:
+async def create(db: AsyncSession, *, organization_id: str, project_id: str, name: str, cpu: float, storage_gb: int = 10) -> Compute:
     if cpu not in CPU_MEM:
         raise ValueError(f"非法 CPU 档位 {cpu}")
     memory_gb = CPU_MEM[cpu]
@@ -29,6 +29,7 @@ async def create(db: AsyncSession, *, organization_id: str, project_id: str, nam
         name=name,
         cpu=cpu,
         memory_gb=memory_gb,
+        storage_gb=storage_gb,
         status="provisioning",
     )
     db.add(comp)

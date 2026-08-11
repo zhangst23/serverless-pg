@@ -41,7 +41,13 @@ async def create_database(
 async def list_databases(auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
     items = await db_svc.list_by_project(db, auth.project_id)
     return [
-        {"id": d.id, "name": d.name, "status": d.status, "compute_id": d.compute_id}
+        {
+            "id": d.id,
+            "name": d.name,
+            "status": d.status,
+            "compute_id": d.compute_id,
+            "storage_gb": d.compute.storage_gb if d.compute else None,
+        }
         for d in items
     ]
 
@@ -51,7 +57,13 @@ async def get_database(database_id: str, auth: AuthContext = Depends(require_aut
     d = await db_svc.get(db, database_id)
     if not d:
         raise HTTPException(status_code=404, detail="not found")
-    return {"id": d.id, "name": d.name, "status": d.status, "compute_id": d.compute_id, "storage_gb": d.storage_gb}
+    return {
+        "id": d.id,
+        "name": d.name,
+        "status": d.status,
+        "compute_id": d.compute_id,
+        "storage_gb": d.compute.storage_gb if d.compute else None,
+    }
 
 
 @router.get("/{database_id}/tables", response_model=list[dict])

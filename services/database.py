@@ -18,9 +18,14 @@ async def create(
     cpu: float = 1.0,
     storage_gb: int = 10,
 ) -> Database:
-    # 1) 分配 Compute
+    # 1) 分配 Compute (存储档位挂到计算实例的磁盘)
     comp = await compute_svc.create(
-        db, organization_id=organization_id, project_id=project_id, name=f"{name}-compute", cpu=cpu
+        db,
+        organization_id=organization_id,
+        project_id=project_id,
+        name=f"{name}-compute",
+        cpu=cpu,
+        storage_gb=storage_gb,
     )
     # 2) 生成 Endpoint
     ep = await endpoint_svc.create(
@@ -34,7 +39,6 @@ async def create(
         status="creating",
         compute_id=comp.id,
         endpoint_id=ep.id,
-        storage_gb=storage_gb,
     )
     db.add(database)
     await db.flush()

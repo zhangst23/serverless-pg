@@ -62,6 +62,7 @@ class Database(Base, TenantMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), default="creating")
     compute_id: Mapped[str | None] = mapped_column(ForeignKey("computes.id"), nullable=True)
     endpoint_id: Mapped[str | None] = mapped_column(ForeignKey("endpoints.id"), nullable=True)
+    compute: Mapped["Compute | None"] = relationship(lazy="joined")
 
 
 # ---------- 计算 (Serverless Compute) ----------
@@ -74,6 +75,8 @@ class Compute(Base, TenantMixin, TimestampMixin):
     # 规格档位 (vCPU): 0.25 / 0.5 / 1 / 2 / 4
     cpu: Mapped[float] = mapped_column(Float, default=1.0)
     memory_gb: Mapped[float] = mapped_column(Float, default=2.0)
+    # 存储档位 (GB): 10 / 50 / 100 / 500 / 1024
+    storage_gb: Mapped[int] = mapped_column(Integer, default=10)
     # 生命周期状态: provisioning / running / suspended / suspending / resuming / error
     status: Mapped[str] = mapped_column(String(32), default="provisioning")
     # 实际 PG 实例信息
