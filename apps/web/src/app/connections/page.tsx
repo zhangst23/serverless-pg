@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Card, Button, Badge, Spinner, ErrorBox, Empty } from "@/components/ui";
-import { projects } from "@/lib/api";
+import { projects, databases, parseApiKey, getApiKey } from "@/lib/api";
 
 const SNIPPET_LABELS: Record<string, string> = {
   connection_string: "连接串",
@@ -15,8 +15,8 @@ const SNIPPET_LABELS: Record<string, string> = {
 };
 
 export default function ConnectionsPage() {
-  const [projectList, setProjectList] = useState<any[]>([]);
-  const [projectId, setProjectId] = useState<string>("");
+  const [dbList, setDbList] = useState<any[]>([]);
+  const [dbId, setDbId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,18 +27,23 @@ export default function ConnectionsPage() {
   const [busy, setBusy] = useState(false);
   const [newRole, setNewRole] = useState<any>(null);
 
-  async function loadProjects() {
+  // 角色接口按项目隔离；项目标识从 API Key 的 proj_<name> 段解析
+  const projectId = (() => {
+    const parsed = parseApiKey(getApiKey());
+    return parsed ? parsed.projectId : "";
+  })();
+
+  async function loadData() {
     setLoading(true);
     setError(null);
     try {
-      const p = await projects.list();
-      setProjectList(p);
-      if (p.length) {
-        const id = p[0].id;
-        setProjectId(id);
-        await loadConn(id);
-        await loadRoles(id);
+      const d = await databases.list();
+      setDbList(d);
+      if (d.length) {
+        setDbId(d[0].id);
+        await loadConn(d[0].id);
       }
+      await loadRoles();
     } catch (e: any) {
       setError(e?.message || "加载失败");
     } finally {
@@ -48,27 +53,28 @@ export default function ConnectionsPage() {
 
   async function loadConn(id: string) {
     try {
-      setConn(await projects.connectionString(id));
+      setConn(await databases.connectionString(id));
     } catch (e: any) {
       setError(e?.message || "获取连接串失败");
     }
   }
-  async function loadRoles(id: string) {
+  async function loadRoles() {
+    if (!projectId) return;
     try {
-      setRoles(await projects.roles(id));
+      setRoles(await projects.roles(projectId));
     } catch {
       setRoles([]);
     }
   }
 
   useEffect(() => {
-    loadProjects();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function switchProject(id: string) {
-    setProjectId(id);
-    await Promise.all([loadConn(id), loadRoles(id)]);
+  async function switchDb(id: string) {
+    setDbId(id);
+    await loadConn(id);
   }
 
   async function createRole() {
@@ -76,10 +82,10 @@ export default function ConnectionsPage() {
     setBusy(true);
     setError(null);
     try {
-      const r = await projects.createRole(projectId, roleName.trim(), rolePriv);
+      const r =       await projects.createRole(projectId, roleName.trim(), rolePriv);
       setNewRole(r);
       setRoleName("");
-      await loadRoles(projectId);
+      await loadRoles();
     } catch (e: any) {
       setError(e?.message || "创建角色失败");
     } finally {
@@ -93,7 +99,7 @@ export default function ConnectionsPage() {
     try {
       const r = await projects.resetRole(projectId, roleId);
       setNewRole(r);
-      await loadRoles(projectId);
+      await loadRoles();
     } catch (e: any) {
       setError(e?.message || "重置失败");
     }
@@ -104,7 +110,7 @@ export default function ConnectionsPage() {
     setError(null);
     try {
       await projects.deleteRole(projectId, roleId);
-      await loadRoles(projectId);
+      await loadRoles();
     } catch (e: any) {
       setError(e?.message || "删除失败");
     }
@@ -115,15 +121,15 @@ export default function ConnectionsPage() {
       title="连接 & 角色"
       subtitle="Connection String · 多语言连接片段 · 数据库角色"
       actions={
-        projectList.length > 0 && (
+        dbList.length > 0 && (
           <select
-            value={projectId}
-            onChange={(e) => switchProject(e.target.value)}
+            value={dbId}
+            onChange={(e) => switchDb(e.target.value)}
             className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm outline-none"
           >
-            {projectList.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.id})
+            {dbList.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
               </option>
             ))}
           </select>
@@ -133,8 +139,8 @@ export default function ConnectionsPage() {
       {loading && <Spinner label="加载中…" />}
       <ErrorBox error={error} />
 
-      {!loading && projectList.length === 0 && (
-        <Empty>暂无项目。请先在「概览」或后端创建项目。</Empty>
+      {!loading && dbList.length === 0 && (
+        <Empty>暂无数据库。请先在「数据库」页创建一个数据库。</Empty>
       )}
 
       {conn && (

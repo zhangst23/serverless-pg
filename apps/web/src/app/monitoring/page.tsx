@@ -38,10 +38,14 @@ export default function MonitoringPage() {
   const [auto, setAuto] = useState(false);
   const timer = useRef<any>(null);
 
-  async function loadDbs() {
+  async function loadDbs(): Promise<any[]> {
     const d = await databases.list();
     setDbList(d);
-    if (d.length) setDbId(d[0].id);
+    if (d.length) {
+      setDbId(d[0].id);
+      await loadMetrics(d[0].id);
+    }
+    return d;
   }
 
   async function loadMetrics(id: string) {
@@ -58,9 +62,7 @@ export default function MonitoringPage() {
   }
 
   useEffect(() => {
-    loadDbs().then(() => {
-      if (dbList.length) loadMetrics(dbList[0].id);
-    });
+    loadDbs().catch(() => setLoading(false));
     return () => timer.current && clearInterval(timer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

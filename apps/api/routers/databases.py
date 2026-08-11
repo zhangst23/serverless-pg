@@ -10,6 +10,7 @@ from db.session import AsyncSession
 from services import database as db_svc
 from services import compute as compute_svc
 from managers.database_manager import list_tables, read_logfile, run_query
+from apps.api.routers.roles import _conn_string, _snippets
 
 router = APIRouter(prefix="/databases", tags=["databases"])
 
@@ -64,6 +65,17 @@ async def get_database(database_id: str, auth: AuthContext = Depends(require_aut
         "compute_id": d.compute_id,
         "storage_gb": d.compute.storage_gb if d.compute else None,
     }
+
+
+@router.get("/{database_id}/connection-string", response_model=dict)
+async def database_connection_string(
+    database_id: str, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)
+):
+    d = await db_svc.get(db, database_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="not found")
+    cs = _conn_string(d.name, "cloudpg", "")
+    return {"database_id": database_id, "connection_string": cs, "snippets": _snippets(d.name, "cloudpg", "")}
 
 
 @router.get("/{database_id}/tables", response_model=list[dict])

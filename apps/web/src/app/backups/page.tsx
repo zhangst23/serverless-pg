@@ -93,7 +93,12 @@ export default function BackupsPage() {
           <Card key={b.id}>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium">{b.id}</div>
+                <div className="text-sm font-medium">
+                  {b.database_name}
+                  {b.created_at
+                    ? ` · ${new Date(b.created_at).toLocaleString("zh-CN", { hour12: false })}`
+                    : ""}
+                </div>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge tone={b.kind === "manual" ? "brand" : "neutral"}>
                     {b.kind}
@@ -101,9 +106,6 @@ export default function BackupsPage() {
                   <Badge tone={b.status === "completed" ? "ok" : "warn"}>
                     {b.status}
                   </Badge>
-                  <span className="text-xs text-[var(--muted)]">
-                    DB: {b.database_id}
-                  </span>
                 </div>
               </div>
               <Button

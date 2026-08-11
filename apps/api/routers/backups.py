@@ -47,5 +47,22 @@ async def restore(backup_id: str, auth: AuthContext = Depends(require_auth), db:
 
 @router.get("", response_model=list[dict])
 async def list_backups(auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
-    items = await backup_svc.list_by_project(db, auth.project_id)
-    return [{"id": b.id, "database_id": b.database_id, "kind": b.kind, "status": b.status} for b in items]
+    from sqlalchemy import select
+    from db.models import Backup, Database
+    res = await db.execute(
+        select(Backup, Database.name)
+        .join(Database, Backup.database_id == Database.id, isouter=True)
+        .where(Backup.project_id == auth.project_id)
+        .order_by(Backup.created_at.desc())
+    )
+    return [
+        {
+            "id": b.id,
+            "database_id": b.database_id,
+            "database_name": db_name or b.database_id,
+            "kind": b.kind,
+            "status": b.status,
+            "created_at": b.created_at.isoformat() if b.created_at else None,
+        }
+        for b, db_name in res.all()
+    ]
