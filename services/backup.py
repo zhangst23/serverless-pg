@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import os
+import secrets
 import subprocess
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,18 +13,37 @@ from db.models import Backup
 from managers.compute_manager import _port_for, _run
 
 
+def _backup_filename(database_name: str) -> str:
+    """命名格式: pg1-20260811-随机码.tar"""
+    ymd = datetime.now(timezone.utc).strftime("%Y%m%d")
+    rand = secrets.token_hex(3)  # 6 字符随机码
+    return f"{database_name}-{ymd}-{rand}.tar"
+
+
 async def create_backup(
     db: AsyncSession, *, organization_id: str, project_id: str, database_id: str, database_name: str, compute_id: str, kind: str = "manual"
 ) -> Backup:
     archive_dir = os.path.join(settings.data_root, compute_id, "backups")
     os.makedirs(archive_dir, exist_ok=True)
     _run("root", ["chown", "-R", "postgres:postgres", archive_dir])
-    location = os.path.join(archive_dir, f"{database_name}_{kind}.dump")
+
+    filename = _backup_filename(database_name)
+    location = os.path.join(archive_dir, filename)
+    dump_path = location[: -len(".tar")] + ".dump"
 
     pg_bin = settings.pg_bin
     port = _port_for(compute_id)
-    r = _run("postgres", [f"{pg_bin}/pg_dump", "-h", "localhost", "-p", str(port), "-U", "cloudpg", "-F", "c", "-f", location, database_name])
-    status = "completed" if r.returncode == 0 else "failed"
+    r = _run(
+        "postgres",
+        [f"{pg_bin}/pg_dump", "-h", "localhost", "-p", str(port), "-U", "cloudpg", "-F", "c", "-f", dump_path, database_name],
+    )
+    status = "failed"
+    if r.returncode == 0:
+        # 打包为 .tar 归档
+        t = _run("postgres", ["tar", "-cf", location, "-C", os.path.dirname(dump_path), os.path.basename(dump_path)])
+        if t.returncode == 0:
+            _run("postgres", ["rm", "-f", dump_path])
+            status = "completed"
 
     bk = Backup(
         organization_id=organization_id,

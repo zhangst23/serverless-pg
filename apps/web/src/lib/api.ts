@@ -206,6 +206,37 @@ export const backups = {
     }),
   restore: (id: string) =>
     request<any>(`/api/v1/backups/${id}/restore`, { method: "POST" }),
+  // 下载: 用 fetch 带 Authorization 头获取 blob，再触发浏览器下载 (.tar)
+  download: async (id: string) => {
+    const token = getToken();
+    const url = `${API_BASE}/api/v1/backups/${id}/download`;
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      let detail = "下载失败";
+      try {
+        detail = (await res.json()).detail || detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const m = disposition.match(/filename="?([^";]+)"?/);
+    const fname = m ? m[1] : `${id}.tar`;
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objUrl);
+  },
+  remove: (id: string) =>
+    request<any>(`/api/v1/backups/${id}`, { method: "DELETE" }),
 };
 
 /* ---------------- Metrics ---------------- */

@@ -58,6 +58,26 @@ export default function BackupsPage() {
     }
   }
 
+  async function download(id: string) {
+    setError(null);
+    try {
+      await backups.download(id);
+    } catch (e: any) {
+      setError(e?.message || "下载失败");
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm("确认删除该备份？此操作不可撤销。")) return;
+    setError(null);
+    try {
+      await backups.remove(id);
+      await load();
+    } catch (e: any) {
+      setError(e?.message || "删除失败");
+    }
+  }
+
   return (
     <AppShell
       title="备份"
@@ -94,6 +114,9 @@ export default function BackupsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium">
+                  {b.name || b.database_name}
+                </div>
+                <div className="mt-0.5 text-xs text-[var(--muted)]">
                   {b.database_name}
                   {b.created_at
                     ? ` · ${new Date(b.created_at).toLocaleString("zh-CN", { hour12: false })}`
@@ -108,13 +131,28 @@ export default function BackupsPage() {
                   </Badge>
                 </div>
               </div>
-              <Button
-                variant="soft"
-                onClick={() => restore(b.id)}
-                disabled={b.status !== "completed"}
-              >
-                恢复
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="soft"
+                  onClick={() => restore(b.id)}
+                  disabled={b.status !== "completed"}
+                >
+                  恢复
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => download(b.id)}
+                  disabled={b.status !== "completed"}
+                >
+                  下载
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => remove(b.id)}
+                >
+                  删除
+                </Button>
+              </div>
             </div>
           </Card>
         ))}
