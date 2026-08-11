@@ -10,14 +10,24 @@ AI-Native Serverless PostgreSQL 云数据库平台（第一版 / MVP）。
 ## 架构
 
 ```text
-User
-  └─ Next.js Web 控制台 (apps/web :4000)
-       └─ FastAPI Control Plane (apps/api :8000)
-            ├─ Database / Compute / Storage Manager  (managers/)
-            └─ Control Plane PostgreSQL (独立实例, 端口 5433)
-                 └─ 用户 PostgreSQL 实例 (PG-01/02/03, 每库一实例)
-                      └─ PgBouncer / 连接池
+User (浏览器)
+  └─ Next.js Web 控制台 (apps/web, 生产 :3002 / 开发 :3000)
+       └─ [账密登录] POST /api/v1/auth/login → 拿到 Session JWT
+       └─ 后续请求带 Authorization: Bearer <JWT> (同源经 Nginx 反代 /api/)
+  └─ CLI / SDK (Agent 通道) 直接带 X-API-Key 调用 :8000
+
+FastAPI Control Plane (apps/api :8000)
+  ├─ 鉴权双通道: require_auth → Bearer JWT (user) | X-API-Key (agent)
+  ├─ Database / Compute / Storage Manager  (managers/)
+  └─ Control Plane PostgreSQL (独立实例, 端口 5433)
+       └─ 用户 PostgreSQL 实例 (PG-01/02/03, 每库一实例)
+            └─ PgBouncer / 连接池
 ```
+
+> 信任链：Web 控制台不持有密钥，账密只在 FastAPI 校验（bcrypt），登录后由
+> FastAPI 用共享 `JWT_SECRET` 签发 Session JWT（HMAC-SHA256）。浏览器直连后端
+> 时携带该 JWT；FastAPI 验签后只认 JWT 内的 `organization_id`/`project_id` 声明，
+> 绝不信任前端声称的租户信息。
 
 ## 目录结构
 
@@ -63,6 +73,7 @@ python -m db.init_db
 
 # 创建初始管理员用户 + 组织 + 生成 Agent API Key
 python -m db.seed_admin --email admin@example.com --password 'StrongPass123' --org acme --org-name 'Acme Inc'
+访问 http://217.69.2.217/login 即可用账密 admin@cloudpg.local / CloudPG@2026 登录。
 
 # 启动 API (默认 :8000)
 uvicorn apps.api.main:app --port 8000
@@ -89,21 +100,23 @@ OpenAPI 文档：`http://localhost:8000/docs`
 
 ```bash
 cd apps/web
+npm install
 
 # 开发模式
-npm install
 npm run dev              # http://localhost:3000
 
-# 生产模式
+# 生产模式 (构建后用 Nginx 反代到 :3002)
 npm run build
-npm run start -p 4000    # 注意: 3000 常被系统服务占用, 建议用 4000
+npm run start -- -p 3002
 ```
 
-前端默认连接 `http://localhost:8000`，可用环境变量覆盖：
+前端通过 `NEXT_PUBLIC_API_BASE` 决定后端地址：
+- 留空（默认）→ 走**同源相对路径** `/api/...`，由 Nginx 把 `/api/` 反代到
+  `127.0.0.1:8000`（生产推荐，天然无跨域）。
+- 设为绝对地址（如 `http://host:8000`）→ 浏览器直连后端（需后端可被公网访问）。
 
-```bash
-NEXT_PUBLIC_API_BASE=http://your-host:8000 npm run dev
-```
+本项目生产环境用 Nginx（`/etc/nginx/conf.d/cloudpg.conf`）：`/` → `:3002`，
+`/api/` → `127.0.0.1:8000`，因此前端 `NEXT_PUBLIC_API_BASE` 留空即可。
 
 **Web 控制台功能**：
 
@@ -118,15 +131,32 @@ NEXT_PUBLIC_API_BASE=http://your-host:8000 npm run dev
 | 监控 | 8 项核心指标 + 自动刷新 |
 
 
-### 管理后台访问
+### 管理后台访问（当前 VPS 实际部署）
 
-http://<你的VPS公网IP>:3002/login
+- 控制台地址：http://217.69.2.217:3002/login
+- 反向代理（Nginx `/etc/nginx/conf.d/cloudpg.conf`）：`/` → `127.0.0.1:3002`（前端），`/api/` → `127.0.0.1:8000`（后端）。
+- 后端进程绑 `127.0.0.1:8000`，前端 `npm run start -- -p 3002`。
 
-Web 控制台使用 **账密登录**（User 通道）。CLI / SDK 仍使用 **X-API-Key**（Agent 通道）。
+**Web 控制台登录凭据（User 通道，账密）**：
 
+```text
+邮箱：admin@cloudpg.local
+密码：CloudPG@2026
+```
 
+> 由 `python -m db.seed_admin --email admin@cloudpg.local --password 'CloudPG@2026' --org acme --org-name 'Acme Inc'` 创建。
 
-### 3. CLI
+**Agent 通道（CLI / SDK，X-API-Key）**：
+
+```text
+X-API-Key：org_acme__proj_<projId>__<rand>
+```
+
+> `<projId>` 为该组织默认项目的 id，seed 时一并生成并打印在终端（形如
+> `X-API-Key (agent): org_acme__proj_xxxx__yyyy`）。CLI/SDK 用此 Key 调用，
+> 与 Web 账密登录互相独立。
+
+登录后前端把 Session JWT 存入 `localStorage`，后续请求自动带 `Authorization: Bearer <JWT>`。
 
 ```bash
 python apps/cli/cloudpg.py --help
@@ -142,6 +172,18 @@ print(client.list_databases())
 ```
 
 ## REST API 速览
+
+### 认证端点（User 通道）
+
+| 方法 & 路径 | 说明 |
+| --- | --- |
+| `POST /api/v1/auth/login` | 账密登录 `{email, password}` → 返回 `{access_token, token_type, user}` |
+| `GET  /api/v1/auth/me` | 当前用户上下文（需 Bearer JWT） |
+| `POST /api/v1/auth/logout` | 登出（无状态 JWT，前端删除 token 即可） |
+
+Session JWT payload 字段：`sub`(user_id)、`organization_id`、`project_id`、`typ:"user"`、`iat`、`exp`(默认 1 天)。
+
+### 资源端点
 
 | 资源 | 主要端点 |
 | --- | --- |
