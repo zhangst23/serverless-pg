@@ -96,6 +96,23 @@ uvicorn apps.api.main:app --port 8000
 
 OpenAPI 文档：`http://localhost:8000/docs`
 
+### 一键部署到新 VPS
+
+仓库根目录提供 `install.sh`，可在裸 Ubuntu 24.04 VPS 上一键完成全部部署
+（systemd 启动 Control Plane PostgreSQL、后端、前端，并生成 Nginx 反代）：
+
+```bash
+sudo bash install.sh \
+  --public-ip <VPS公网IP> \
+  --admin-email admin@example.com --admin-password 'StrongPass123' \
+  --org acme --org-name 'Acme Inc'
+```
+
+脚本会自动检测/安装 PostgreSQL 18（PGDG）、Python venv、Node 20、Nginx，
+初始化 Control Plane 库、建表、seed 管理员与 Agent Key，构建前端并配置反代。
+常用参数：`--source`（源码目录）、`--pg-bin`（PG 二进制路径）、`--public-ip`（展示用公网地址）。
+脚本尽量幂等，重复运行会复用已有数据目录与服务。
+
 ### 2. Web 管理后台（Next.js）
 
 ```bash
