@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 
@@ -51,6 +52,33 @@ def run_query(instance_id: str, database: str, sql: str) -> list[dict]:
         raise RuntimeError(r.stderr.strip())
     lines = [l for l in r.stdout.splitlines() if l]
     return [{"row": l} for l in lines]
+
+
+def run_query_json(instance_id: str, database: str, sql: str) -> list[dict]:
+    """以 JSON 数组返回结构化结果 (每行一个对象)，用于扩展 / 参数管理等场景。"""
+    pg_bin = settings.pg_bin
+    port = _port_for(instance_id)
+    wrapped = f"SELECT json_agg(t) FROM ({sql}) AS t"
+    r = _run("postgres", [f"{pg_bin}/psql", "-h", "localhost", "-p", str(port), "-U", "cloudpg", "-d", database, "-X", "-t", "-A", "-c", wrapped])
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip())
+    out = r.stdout.strip()
+    if not out or out.upper() == "NULL":
+        return []
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"无法解析查询结果: {e}") from e
+    return data if isinstance(data, list) else [data]
+
+
+def run_command(instance_id: str, database: str, sql: str) -> None:
+    """执行 DDL/DML 命令 (如 CREATE/DROP EXTENSION)，无需返回结果集。"""
+    pg_bin = settings.pg_bin
+    port = _port_for(instance_id)
+    r = _run("postgres", [f"{pg_bin}/psql", "-h", "localhost", "-p", str(port), "-U", "cloudpg", "-d", database, "-X", "-c", sql])
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip())
 
 
 def list_tables(instance_id: str, database: str) -> list[str]:

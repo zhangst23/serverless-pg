@@ -89,7 +89,7 @@ export default function TablesPage() {
   }
 
   return (
-    <AppShell title="表浏览" subtitle="Tables · 左侧选择数据表，右侧查看内容">
+    <AppShell title="数据表" subtitle="Tables · 左侧选择数据表，右侧查看内容">
       <ErrorBox error={error} />
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">

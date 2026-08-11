@@ -14,6 +14,7 @@ from apps.api.routers import (
     databases,
     endpoints,
     metrics,
+    performance,
     projects,
     roles,
 )
@@ -49,6 +50,7 @@ app.include_router(endpoints.router, prefix="/api/v1")
 app.include_router(backups.router, prefix="/api/v1")
 app.include_router(metrics.router, prefix="/api/v1")
 app.include_router(roles.router, prefix="/api/v1")
+app.include_router(performance.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["meta"])

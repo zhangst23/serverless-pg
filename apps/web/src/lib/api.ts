@@ -255,3 +255,32 @@ export const endpoints = {
 export const auth = {
   health: () => request<any>("/health", { method: "GET" }),
 };
+
+/* ---------------- PG 性能 (扩展 / 参数) ---------------- */
+export const performance = {
+  // 扩展(插件)
+  listExtensions: (databaseId: string) =>
+    request<any>(`/api/v1/performance/extensions?database_id=${encodeURIComponent(databaseId)}`, {
+      method: "GET",
+    }),
+  installExtension: (name: string, databaseId: string, schema?: string) =>
+    request<any>("/api/v1/performance/extensions", {
+      method: "POST",
+      body: JSON.stringify({ name, database_id: databaseId, schema }),
+    }),
+  dropExtension: (name: string, databaseId: string) =>
+    request<any>(`/api/v1/performance/extensions/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ database_id: databaseId }),
+    }),
+  // 运行参数
+  listSettings: (databaseId: string) =>
+    request<any>(`/api/v1/performance/settings?database_id=${encodeURIComponent(databaseId)}`, {
+      method: "GET",
+    }),
+  setSetting: (name: string, value: string, databaseId: string, scope = "database") =>
+    request<any>("/api/v1/performance/settings", {
+      method: "POST",
+      body: JSON.stringify({ name, value, database_id: databaseId, scope }),
+    }),
+};

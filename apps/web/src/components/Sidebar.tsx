@@ -7,12 +7,13 @@ import { clearToken } from "@/lib/api";
 const NAV = [
   { href: "/dashboard", label: "概览", icon: "📊" },
   { href: "/databases", label: "数据库", icon: "🗄️" },
-  { href: "/tables", label: "表浏览", icon: "📋" },
-  { href: "/logs", label: "日志", icon: "📜" },
+  { href: "/tables", label: "数据表", icon: "📋" },
+  { href: "/performance", label: "PG性能", icon: "🚀" },
   { href: "/computes", label: "计算实例", icon: "⚡" },
   { href: "/connections", label: "连接 & 角色", icon: "🔌" },
   { href: "/backups", label: "备份", icon: "💾" },
   { href: "/monitoring", label: "监控", icon: "📈" },
+  { href: "/logs", label: "日志", icon: "📜" },
   { href: "/settings", label: "设置", icon: "⚙️" },
 ];
 
