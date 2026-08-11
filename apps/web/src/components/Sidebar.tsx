@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearApiKey } from "@/lib/api";
+import { clearToken } from "@/lib/api";
 
 const NAV = [
   { href: "/dashboard", label: "概览", icon: "📊" },

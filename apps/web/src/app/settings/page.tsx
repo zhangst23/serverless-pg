@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Card, Button, Spinner, ErrorBox } from "@/components/ui";
-import { getApiKey, parseApiKey, projects } from "@/lib/api";
+import { getToken, parseToken, projects } from "@/lib/api";
 
 export default function SettingsPage() {
   const [neverSuspend, setNeverSuspend] = useState(false);

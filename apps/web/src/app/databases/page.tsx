@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import AppShell from "@/components/AppShell";
 import { Card, Button, Badge, Spinner, ErrorBox, Empty, ConfirmDeleteModal } from "@/components/ui";
-import { projects, parseApiKey, getApiKey } from "@/lib/api";
+import { projects, parseToken, getToken } from "@/lib/api";
 import { databases } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 

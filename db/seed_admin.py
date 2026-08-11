@@ -24,11 +24,11 @@ from db.models import ApiKey, Member, Organization, User
 from db.session import AsyncSessionLocal
 
 try:
-    from passlib.context import CryptContext
+    import bcrypt
 
-    _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    _HAS_BCRYPT = True
 except Exception:  # pragma: no cover
-    _pwd = None
+    _HAS_BCRYPT = False
 
 
 def make_api_key(org: str, proj: str) -> str:
@@ -52,10 +52,13 @@ async def seed(email: str, password: str, org_slug: str, org_name: str) -> None:
 
         project = Project(id=gen_id("proj"), name="default", region="local")
         project.organization_id = org.id
+        project.project_id = project.id  # 自引用租户隔离
         db.add(project)
         await db.flush()
 
-        hashed = _pwd.hash(password) if _pwd else password
+        if not _HAS_BCRYPT:
+            raise RuntimeError("bcrypt unavailable")
+        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
         user = User(id=gen_id("usr"), email=email, hashed_password=hashed)
         db.add(user)
         await db.flush()
@@ -65,7 +68,10 @@ async def seed(email: str, password: str, org_slug: str, org_name: str) -> None:
 
         # Agent API Key
         raw = make_api_key(org_slug, project.id)
-        db.add(ApiKey(name="default-agent", key_hash=hash_api_key(raw)))
+        api_key = ApiKey(name="default-agent", key_hash=hash_api_key(raw))
+        api_key.organization_id = org.id
+        api_key.project_id = project.id
+        db.add(api_key)
         await db.commit()
 
         print("[ok] created:")

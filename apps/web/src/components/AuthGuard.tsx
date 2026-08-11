@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getApiKey } from "@/lib/api";
+import { getToken } from "@/lib/api";
 import { Spinner } from "@/components/ui";
 
 export default function AuthGuard({ children }: { children: ReactNode }) {

@@ -19,17 +19,26 @@ from apps.api.security import AuthContext, create_session_token, require_auth
 from db.models import Member, Organization, Project, User
 
 try:
-    from passlib.context import CryptContext
+    import bcrypt
 
-    _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    _HAS_BCRYPT = True
 except Exception:  # pragma: no cover
-    _pwd = None
+    _HAS_BCRYPT = False
+
+
+def hash_password(plain: str) -> str:
+    if not _HAS_BCRYPT:
+        raise RuntimeError("bcrypt unavailable")
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    if _pwd is None:
+    if not _HAS_BCRYPT:
         return False
-    return _pwd.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except (ValueError, TypeError):
+        return False
 
 
 class LoginRequest(BaseModel):
@@ -56,7 +65,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 @router.post("/login", response_model=LoginResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
-    if _pwd is None:
+    if not _HAS_BCRYPT:
         raise HTTPException(status_code=500, detail="password backend unavailable")
 
     res = await db.execute(select(User).where(User.email == body.email.strip().lower()))
