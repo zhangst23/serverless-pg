@@ -83,8 +83,16 @@ def stop(instance_id: str) -> None:
 
 
 def restart(instance_id: str) -> None:
-    # 不等待(-W): 让 PG 后台重启, 后端快速返回, 避免阻塞单 worker
-    _pg_ctl(instance_id, "restart", "-W")
+    # 后台重启: 用 Popen 不等待, PG 在后台完成重启, 后端 worker 立即返回,
+    # 避免单 worker 被 pg_ctl restart 阻塞数十秒导致整个后端无响应。
+    data_dir = _data_dir(instance_id)
+    pg_bin = settings.pg_bin
+    subprocess.Popen(
+        ["sudo", "-u", "postgres", f"{pg_bin}/pg_ctl", "-D", data_dir, "restart", "-W"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
 
 
 def suspend(instance_id: str) -> None:
