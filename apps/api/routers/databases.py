@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from apps.api.config import settings
 from apps.api.deps import get_db
 from apps.api.security import AuthContext, require_auth
 from db.session import AsyncSession
@@ -69,13 +70,20 @@ async def get_database(database_id: str, auth: AuthContext = Depends(require_aut
 
 @router.get("/{database_id}/connection-string", response_model=dict)
 async def database_connection_string(
-    database_id: str, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)
+    database_id: str, host: str | None = None, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)
 ):
     d = await db_svc.get(db, database_id)
     if not d:
         raise HTTPException(status_code=404, detail="not found")
-    cs = _conn_string(d.name, "cloudpg", "")
-    return {"database_id": database_id, "connection_string": cs, "snippets": _snippets(d.name, "cloudpg", "")}
+    port = d.compute.port if d.compute else None
+    cs = _conn_string(d.name, "cloudpg", "", host, port)
+    return {
+        "database_id": database_id,
+        "host": host or settings.public_host,
+        "port": port,
+        "connection_string": cs,
+        "snippets": _snippets(d.name, "cloudpg", "", host, port),
+    }
 
 
 @router.get("/{database_id}/tables", response_model=list[dict])

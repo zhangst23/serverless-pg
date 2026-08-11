@@ -26,6 +26,9 @@ export default function ConnectionsPage() {
   const [rolePriv, setRolePriv] = useState("readwrite");
   const [busy, setBusy] = useState(false);
   const [newRole, setNewRole] = useState<any>(null);
+  // 连接主机: 默认空 = 使用公网 IP; 添加域名后使用自定义域名
+  const [host, setHost] = useState<string>("");
+  const [domainInput, setDomainInput] = useState<string>("");
 
   // 角色接口按项目隔离；项目标识从 API Key 的 proj_<name> 段解析
   const projectId = (() => {
@@ -51,9 +54,9 @@ export default function ConnectionsPage() {
     }
   }
 
-  async function loadConn(id: string) {
+  async function loadConn(id: string, h?: string) {
     try {
-      setConn(await databases.connectionString(id));
+      setConn(await databases.connectionString(id, h));
     } catch (e: any) {
       setError(e?.message || "获取连接串失败");
     }
@@ -74,7 +77,20 @@ export default function ConnectionsPage() {
 
   async function switchDb(id: string) {
     setDbId(id);
-    await loadConn(id);
+    await loadConn(id, host);
+  }
+
+  function applyDomain() {
+    const d = domainInput.trim();
+    if (!d) return;
+    setHost(d);
+    if (dbId) loadConn(dbId, d);
+  }
+
+  function clearDomain() {
+    setHost("");
+    setDomainInput("");
+    if (dbId) loadConn(dbId, "");
   }
 
   async function createRole() {
@@ -82,7 +98,7 @@ export default function ConnectionsPage() {
     setBusy(true);
     setError(null);
     try {
-      const r =       await projects.createRole(projectId, roleName.trim(), rolePriv);
+      const r = await projects.createRole(projectId, roleName.trim(), rolePriv);
       setNewRole(r);
       setRoleName("");
       await loadRoles();
@@ -145,6 +161,45 @@ export default function ConnectionsPage() {
 
       {conn && (
         <Card className="mb-6" title="连接串 (Connection String)">
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-4 py-3">
+            <span className="text-xs text-[var(--muted)]">主机:</span>
+            {!host ? (
+              <>
+                <Badge tone="brand">
+                  {conn.host || "公网 IP"} : {conn.port ?? ""}
+                </Badge>
+                <span className="text-xs text-[var(--muted)]">
+                  默认使用公网 IP 连接
+                </span>
+              </>
+            ) : (
+              <>
+                <Badge tone="brand">{host} : {conn.port ?? ""}</Badge>
+                <Button
+                  variant="ghost"
+                  className="px-2 py-1 text-xs"
+                  onClick={clearDomain}
+                >
+                  恢复 IP
+                </Button>
+              </>
+            )}
+            <input
+              value={domainInput}
+              onChange={(e) => setDomainInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && applyDomain()}
+              placeholder="输入域名后回车添加"
+              className="ml-auto w-52 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-sm outline-none focus:border-[var(--brand)]"
+            />
+            <Button
+              variant="soft"
+              className="px-3 py-1.5 text-xs"
+              onClick={applyDomain}
+              disabled={!domainInput.trim()}
+            >
+              添加域名
+            </Button>
+          </div>
           <Copyable value={conn.connection_string} />
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             {Object.entries(SNIPPET_LABELS).map(([k, label]) =>

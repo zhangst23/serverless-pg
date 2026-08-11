@@ -132,10 +132,13 @@ export const databases = {
     }),
   get: (id: string) =>
     request<any>(`/api/v1/databases/${id}`, { method: "GET" }),
-  connectionString: (id: string) =>
-    request<any>(`/api/v1/databases/${id}/connection-string`, {
-      method: "GET",
-    }),
+  connectionString: (id: string, host?: string) =>
+    request<any>(
+      `/api/v1/databases/${id}/connection-string${
+        host ? `?host=${encodeURIComponent(host)}` : ""
+      }`,
+      { method: "GET" }
+    ),
   remove: (id: string) =>
     request<any>(`/api/v1/databases/${id}`, { method: "DELETE" }),
   query: (id: string, sql: string) =>

@@ -21,12 +21,14 @@ class RoleCreate(BaseModel):
     privilege: str = "readwrite"  # readwrite / readonly
 
 
-def _conn_string(database_name: str, user: str, password: str) -> str:
-    return f"postgres://{user}:{password}@{settings.external_host}:{settings.pgbouncer_port}/{database_name}"
+def _conn_string(database_name: str, user: str, password: str, host: str | None = None, port: int | None = None) -> str:
+    h = host or settings.public_host
+    p = port or settings.pgbouncer_port
+    return f"postgres://{user}:{password}@{h}:{p}/{database_name}"
 
 
-def _snippets(database_name: str, user: str, password: str) -> dict:
-    cs = _conn_string(database_name, user, password)
+def _snippets(database_name: str, user: str, password: str, host: str | None = None, port: int | None = None) -> dict:
+    cs = _conn_string(database_name, user, password, host, port)
     return {
         "connection_string": cs,
         "env": f"DATABASE_URL={cs}",
@@ -68,9 +70,10 @@ async def create_role_endpoint(
     await db.flush()
     await db.commit()
     await db.refresh(role)
+    port = dbs[0].compute.port if dbs[0].compute else None
     return {
         "id": role.id, "name": role.name, "privilege": role.privilege,
-        "snippets": _snippets(dbs[0].name, body.name, password),
+        "snippets": _snippets(dbs[0].name, body.name, password, None, port),
     }
 
 
@@ -87,7 +90,8 @@ async def reset_password(project_id: str, role_id: str, auth: AuthContext = Depe
         create_role(dbs[0].compute_id, role.name, new_pw, readonly=(role.privilege == "readonly"))
     role.password = new_pw
     await db.commit()
-    return {"id": role.id, "snippets": _snippets(dbs[0].name if dbs else "", role.name, new_pw)}
+    port = dbs[0].compute.port if (dbs and dbs[0].compute) else None
+    return {"id": role.id, "snippets": _snippets(dbs[0].name if dbs else "", role.name, new_pw, None, port)}
 
 
 @router.delete("/projects/{project_id}/roles/{role_id}", response_model=dict)
@@ -103,9 +107,13 @@ async def delete_role(project_id: str, role_id: str, auth: AuthContext = Depends
 
 
 @router.get("/projects/{project_id}/connection-string", response_model=dict)
-async def connection_string(project_id: str, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+async def connection_string(
+    project_id: str, host: str | None = None, auth: AuthContext = Depends(require_auth), db: AsyncSession = Depends(get_db)
+):
     dbs = await db_svc.list_by_project(db, project_id)
     if not dbs:
         raise HTTPException(status_code=404, detail="no database")
-    cs = _conn_string(dbs[0].name, "cloudpg", "")
-    return {"connection_string": cs, "snippets": _snippets(dbs[0].name, "cloudpg", "")}
+    d = dbs[0]
+    port = d.compute.port if d.compute else None
+    cs = _conn_string(d.name, "cloudpg", "", host, port)
+    return {"connection_string": cs, "snippets": _snippets(d.name, "cloudpg", "", host, port)}

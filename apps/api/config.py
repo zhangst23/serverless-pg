@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     pgbouncer_host: str = "localhost"
     pgbouncer_port: int = 6432
     external_host: str = "db.cloudpg.local"
+    # 公网连接展示默认主机 (VPS 公网 IP; 可被前端传入的域名覆盖)
+    public_host: str = "217.69.2.217"
 
     # 计算规格档位 (vCPU)
     compute_tiers: list[float] = [0.25, 0.5, 1.0, 2.0, 4.0]
